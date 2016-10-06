@@ -11,7 +11,7 @@ import { assign } from 'vs/base/common/objects';
 import * as platform from 'vs/base/common/platform';
 import { parseMainProcessArgv, ParsedArgs } from 'vs/platform/environment/node/argv';
 import { mkdirp } from 'vs/base/node/pfs';
-import { IProcessEnvironment, IEnvService, EnvService } from 'vs/code/electron-main/env';
+import { validatePaths } from 'vs/code/electron-main/paths';
 import { IWindowsService, WindowsManager, WindowEventService } from 'vs/code/electron-main/windows';
 import { IWindowEventService } from 'vs/code/common/windows';
 import { WindowEventChannel } from 'vs/code/common/windowsIpc';
@@ -69,10 +69,9 @@ function quit(accessor: ServicesAccessor, arg?: any) {
 	process.exit(exitCode); // in main, process.exit === app.exit
 }
 
-function main(accessor: ServicesAccessor, mainIpcServer: Server, userEnv: IProcessEnvironment): void {
+function main(accessor: ServicesAccessor, mainIpcServer: Server, userEnv: platform.IProcessEnvironment): void {
 	const instantiationService = accessor.get(IInstantiationService);
 	const logService = accessor.get(ILogService);
-	const envService = accessor.get(IEnvService);
 	const environmentService = accessor.get(IEnvironmentService);
 	const windowsService = accessor.get(IWindowsService);
 	const windowEventService = accessor.get(IWindowEventService);
@@ -103,7 +102,7 @@ function main(accessor: ServicesAccessor, mainIpcServer: Server, userEnv: IProce
 
 	logService.log('Starting VS Code in verbose mode');
 	logService.log(`from: ${environmentService.appRoot}`);
-	logService.log('args:', envService.cliArgs);
+	logService.log('args:', environmentService.args);
 
 	// Setup Windows mutex
 	let windowsMutex: Mutex = null;
@@ -253,19 +252,18 @@ function main(accessor: ServicesAccessor, mainIpcServer: Server, userEnv: IProce
 	updateService.initialize();
 
 	// Open our first window
-	if (envService.cliArgs['new-window'] && envService.cliArgs.paths.length === 0) {
-		windowsService.open({ cli: envService.cliArgs, forceNewWindow: true, forceEmpty: true }); // new window if "-n" was used without paths
-	} else if (global.macOpenFiles && global.macOpenFiles.length && (!envService.cliArgs.paths || !envService.cliArgs.paths.length)) {
-		windowsService.open({ cli: envService.cliArgs, pathsToOpen: global.macOpenFiles }); // mac: open-file event received on startup
+	if (environmentService.args['new-window'] && environmentService.args._.length === 0) {
+		windowsService.open({ cli: environmentService.args, forceNewWindow: true, forceEmpty: true }); // new window if "-n" was used without paths
+	} else if (global.macOpenFiles && global.macOpenFiles.length && (!environmentService.args._ || !environmentService.args._.length)) {
+		windowsService.open({ cli: environmentService.args, pathsToOpen: global.macOpenFiles }); // mac: open-file event received on startup
 	} else {
-		windowsService.open({ cli: envService.cliArgs, forceNewWindow: envService.cliArgs['new-window'], diffMode: envService.cliArgs.diff }); // default: read paths from cli
+		windowsService.open({ cli: environmentService.args, forceNewWindow: environmentService.args['new-window'], diffMode: environmentService.args.diff }); // default: read paths from cli
 	}
 }
 
 function setupIPC(accessor: ServicesAccessor): TPromise<Server> {
 	const logService = accessor.get(ILogService);
 	const environmentService = accessor.get(IEnvironmentService);
-	const envService = accessor.get(IEnvService);
 
 	function setup(retry: boolean): TPromise<Server> {
 		return serve(environmentService.mainIPCHandle).then(server => {
@@ -301,7 +299,7 @@ function setupIPC(accessor: ServicesAccessor): TPromise<Server> {
 					const channel = client.getChannel<ILaunchChannel>('launch');
 					const service = new LaunchChannelClient(channel);
 
-					return service.start(envService.cliArgs, process.env)
+					return service.start(environmentService.args, process.env)
 						.then(() => client.dispose())
 						.then(() => TPromise.wrapError('Sent env to running instance. Terminating...'));
 				},
@@ -329,11 +327,7 @@ function setupIPC(accessor: ServicesAccessor): TPromise<Server> {
 	return setup(true);
 }
 
-interface IEnv {
-	[key: string]: string;
-}
-
-function getUnixShellEnvironment(): TPromise<IEnv> {
+function getUnixShellEnvironment(): TPromise<platform.IProcessEnvironment> {
 	const promise = new TPromise((c, e) => {
 		const runAsNode = process.env['ELECTRON_RUN_AS_NODE'];
 		const noAttach = process.env['ELECTRON_NO_ATTACH_CONSOLE'];
@@ -396,7 +390,7 @@ function getUnixShellEnvironment(): TPromise<IEnv> {
  * This should only be done when Code itself is not launched
  * from within a shell.
  */
-function getShellEnvironment(): TPromise<IEnv> {
+function getShellEnvironment(): TPromise<platform.IProcessEnvironment> {
 	if (process.env['VSCODE_CLI'] === '1') {
 		return TPromise.as({});
 	}
@@ -413,7 +407,7 @@ function getShellEnvironment(): TPromise<IEnv> {
  * Such environment needs to be propagated to the renderer/shared
  * processes.
  */
-function getEnvironment(accessor: ServicesAccessor): TPromise<IEnv> {
+function getEnvironment(accessor: ServicesAccessor): TPromise<platform.IProcessEnvironment> {
 	const environmentService = accessor.get(IEnvironmentService);
 
 	return getShellEnvironment().then(shellEnv => {
@@ -430,6 +424,7 @@ function getEnvironment(accessor: ServicesAccessor): TPromise<IEnv> {
 
 function createPaths(environmentService: IEnvironmentService): TPromise<any> {
 	const paths = [environmentService.appSettingsHome, environmentService.userHome, environmentService.extensionsPath];
+
 	return TPromise.join(paths.map(p => mkdirp(p))) as TPromise<any>;
 }
 
@@ -438,6 +433,7 @@ function start(): void {
 
 	try {
 		args = parseMainProcessArgv(process.argv);
+		args = validatePaths(args);
 	} catch (err) {
 		console.error(err.message);
 		process.exit(1);
@@ -448,7 +444,6 @@ function start(): void {
 	const services = new ServiceCollection();
 
 	services.set(IEnvironmentService, new SyncDescriptor(EnvironmentService, args, process.execPath));
-	services.set(IEnvService, new SyncDescriptor(EnvService));
 	services.set(ILogService, new SyncDescriptor(MainLogService));
 	services.set(IWindowsService, new SyncDescriptor(WindowsManager));
 	services.set(IWindowEventService, new SyncDescriptor(WindowEventService));
