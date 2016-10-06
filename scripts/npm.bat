@@ -7,6 +7,6 @@ set npm_config_arch="ia32"
 set npm_config_runtime="electron"
 set HOME=~\.electron-gyp
 
-npm %*
+npm %* --registry=https://registry.npm.taobao.org
 
 endlocal

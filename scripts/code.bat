@@ -14,10 +14,10 @@ set NAMESHORT=%NAMESHORT:"=%.exe
 set CODE=".build\electron\%NAMESHORT%"
 
 :: Get electron
-if not exist %CODE% node .\node_modules\gulp\bin\gulp.js electron
+if not exist %CODE% node .\node_modules\gulp\bin\gulp.js electron --registry=https://registry.npm.taobao.org
 
 :: Build
-if not exist out node .\node_modules\gulp\bin\gulp.js compile
+if not exist out node .\node_modules\gulp\bin\gulp.js compile --registry=https://registry.npm.taobao.org
 
 :: Configuration
 set NODE_ENV=development
