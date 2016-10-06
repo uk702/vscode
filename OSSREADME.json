@@ -119,7 +119,7 @@
 	"name": "electron",
 	"version": "1.3.7",
 	"license": "MIT",
-	"repositoryURL": "https://github.com/electron/electron",
+	"repositoryURL": "https://npm.taobao.org/mirrors/electron",
 	"isProd": true
 },
 {

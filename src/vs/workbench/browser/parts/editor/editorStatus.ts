@@ -900,6 +900,16 @@ class ChangeIndentationAction extends Action {
 		(<IPickOpenEntry>picks[0]).separator = { label: nls.localize('indentView', "change view") };
 		(<IPickOpenEntry>picks[3]).separator = { label: nls.localize('indentConvert', "convert file"), border: true };
 
+		try {
+			console.error("Lilx: print ChangeIndentationAction run() call stack.");
+
+			let err = new Error("print stack:");
+			console.error(err.stack);
+		}
+		catch (Error) {
+			console.error("****** Lilx: catch exception when print ChangeIndentationAction run() call stack. ******");
+		}
+
 		return this.quickOpenService.pick(picks, { placeHolder: nls.localize('pickAction', "Select Action"), matchOnDetail: true }).then(action => action && action.run());
 	}
 }

@@ -186,6 +186,16 @@ export class EditorPart extends Part implements IEditorPart, IEditorGroupService
 	public openEditor(input: EditorInput, options?: EditorOptions, sideBySide?: boolean): TPromise<BaseEditor>;
 	public openEditor(input: EditorInput, options?: EditorOptions, position?: Position, widthRatios?: number[]): TPromise<BaseEditor>;
 	public openEditor(input: EditorInput, options?: EditorOptions, arg3?: any, widthRatios?: number[]): TPromise<BaseEditor> {
+		//Lilx
+		try {
+			console.error("Lilx: EditorPart openEditor, input = "+ input);
+
+			let err = new Error("*** stack ***");
+			console.error(err.stack);
+		}
+		catch (Error) {
+			
+		}
 
 		// Normalize some values
 		if (!options) { options = null; }
