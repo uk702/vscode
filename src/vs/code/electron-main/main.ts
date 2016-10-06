@@ -43,6 +43,7 @@ import { getPathLabel } from 'vs/base/common/labels';
 import { IURLService } from 'vs/platform/url/common/url';
 import { URLChannel } from 'vs/platform/url/common/urlIpc';
 import { URLService } from 'vs/platform/url/electron-main/urlService';
+import product from 'vs/platform/product';
 
 import * as fs from 'original-fs';
 import * as cp from 'child_process';
@@ -101,14 +102,14 @@ function main(accessor: ServicesAccessor, mainIpcServer: Server, userEnv: IProce
 	});
 
 	logService.log('Starting VS Code in verbose mode');
-	logService.log(`from: ${envService.appRoot}`);
+	logService.log(`from: ${environmentService.appRoot}`);
 	logService.log('args:', envService.cliArgs);
 
 	// Setup Windows mutex
 	let windowsMutex: Mutex = null;
 	try {
 		const Mutex = (<any>require.__$__nodeRequire('windows-mutex')).Mutex;
-		windowsMutex = new Mutex(envService.product.win32MutexName);
+		windowsMutex = new Mutex(product.win32MutexName);
 	} catch (e) {
 		// noop
 	}
@@ -133,8 +134,8 @@ function main(accessor: ServicesAccessor, mainIpcServer: Server, userEnv: IProce
 	// Spawn shared process
 	const initData = { args: environmentService.args };
 	const options = {
-		allowOutput: !envService.isBuilt || envService.cliArgs.verbose,
-		debugPort: envService.isBuilt ? null : 5871
+		allowOutput: !environmentService.isBuilt || environmentService.verbose,
+		debugPort: environmentService.isBuilt ? null : 5871
 	};
 
 	let sharedProcessDisposable;
@@ -150,8 +151,8 @@ function main(accessor: ServicesAccessor, mainIpcServer: Server, userEnv: IProce
 	// This will help Windows to associate the running program with
 	// any shortcut that is pinned to the taskbar and prevent showing
 	// two icons in the taskbar for the same app.
-	if (platform.isWindows && envService.product.win32AppUserModelId) {
-		app.setAppUserModelId(envService.product.win32AppUserModelId);
+	if (platform.isWindows && product.win32AppUserModelId) {
+		app.setAppUserModelId(product.win32AppUserModelId);
 	}
 
 	function dispose() {
