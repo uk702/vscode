@@ -361,12 +361,15 @@ export class ExtensionsWorkbenchService implements IExtensionsWorkbenchService {
 			.then(galleryExtensions => galleryExtensions.map(galleryExtension => this.fromGallery(galleryExtension)))
 			.then(extensions => {
 				const map = new Map<string, Extension>();
-				map.set(`${extension.publisher}.${extension.name}`, <Extension>extension);
 				for (const extension of extensions) {
 					map.set(`${extension.publisher}.${extension.name}`, extension);
 				}
 				return new ExtensionDependencies(<Extension>extension, map);
 			});
+	}
+
+	open(extension: IExtension, sideByside: boolean = false): TPromise<any> {
+		return this.editorService.openEditor(this.instantiationService.createInstance(ExtensionsInput, extension), null, sideByside);
 	}
 
 	private fromGallery(gallery: IGalleryExtension): Extension {
@@ -621,13 +624,8 @@ export class ExtensionsWorkbenchService implements IExtensionsWorkbenchService {
 				}
 
 				const extension = result.firstPage[0];
-				this.openExtension(extension);
+				this.open(extension).done(null, error => this.onError(error));
 			});
-	}
-
-	private openExtension(extension: IExtension): void {
-		this.editorService.openEditor(this.instantiationService.createInstance(ExtensionsInput, extension))
-			.done(null, err => this.onError(err));
 	}
 
 	dispose(): void {
