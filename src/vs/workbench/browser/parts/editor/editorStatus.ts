@@ -900,15 +900,6 @@ class ChangeIndentationAction extends Action {
 		(<IPickOpenEntry>picks[0]).separator = { label: nls.localize('indentView', "change view") };
 		(<IPickOpenEntry>picks[3]).separator = { label: nls.localize('indentConvert', "convert file"), border: true };
 
-		//Lilx
-		var i = 0;
-		var fun = arguments.callee;
-		do {
-			fun = fun.arguments.callee.caller;
-			console.log(++i + ': ' + fun);
-		} while (fun);
-
-
 		try {
 			console.error("Lilx: print ChangeIndentationAction run() call stack.");
 
