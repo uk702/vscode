@@ -1,4 +1,8 @@
 {
+	"editor.fontSize": 16,
+	"editor.wordWrap": true,
+	"editor.wrappingIndent": "none",
+
 	"editor.insertSpaces": false,
 	"files.eol": "\n",
 	"files.trimTrailingWhitespace": true,
