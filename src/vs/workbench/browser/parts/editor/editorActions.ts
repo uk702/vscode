@@ -4,22 +4,22 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import {TPromise} from 'vs/base/common/winjs.base';
+import { TPromise } from 'vs/base/common/winjs.base';
 import nls = require('vs/nls');
-import {Action} from 'vs/base/common/actions';
-import {EditorInput, getUntitledOrFileResource, TextEditorOptions, EditorOptions, IEditorIdentifier, IEditorContext, ActiveEditorMoveArguments, ActiveEditorMovePositioning, EditorCommands} from 'vs/workbench/common/editor';
-import {QuickOpenEntryGroup} from 'vs/base/parts/quickopen/browser/quickOpenModel';
-import {EditorQuickOpenEntry, EditorQuickOpenEntryGroup, IEditorQuickOpenEntry, QuickOpenAction} from 'vs/workbench/browser/quickopen';
-import {IWorkbenchEditorService} from 'vs/workbench/services/editor/common/editorService';
-import {IQuickOpenService} from 'vs/workbench/services/quickopen/common/quickOpenService';
-import {IPartService} from 'vs/workbench/services/part/common/partService';
-import {Position, IEditor, Direction, IResourceInput, IEditorInput} from 'vs/platform/editor/common/editor';
-import {IInstantiationService} from 'vs/platform/instantiation/common/instantiation';
-import {IHistoryService} from 'vs/workbench/services/history/common/history';
-import {IKeybindingService} from 'vs/platform/keybinding/common/keybinding';
-import {IEditorGroupService, GroupArrangement} from 'vs/workbench/services/group/common/groupService';
-import {BaseTextEditor} from 'vs/workbench/browser/parts/editor/textEditor';
-import {ICommandService} from 'vs/platform/commands/common/commands';
+import { Action } from 'vs/base/common/actions';
+import { EditorInput, getUntitledOrFileResource, TextEditorOptions, EditorOptions, IEditorIdentifier, IEditorContext, ActiveEditorMoveArguments, ActiveEditorMovePositioning, EditorCommands } from 'vs/workbench/common/editor';
+import { QuickOpenEntryGroup } from 'vs/base/parts/quickopen/browser/quickOpenModel';
+import { EditorQuickOpenEntry, EditorQuickOpenEntryGroup, IEditorQuickOpenEntry, QuickOpenAction } from 'vs/workbench/browser/quickopen';
+import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
+import { IQuickOpenService } from 'vs/workbench/services/quickopen/common/quickOpenService';
+import { IPartService } from 'vs/workbench/services/part/common/partService';
+import { Position, IEditor, Direction, IResourceInput, IEditorInput } from 'vs/platform/editor/common/editor';
+import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { IHistoryService } from 'vs/workbench/services/history/common/history';
+import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
+import { IEditorGroupService, GroupArrangement } from 'vs/workbench/services/group/common/groupService';
+import { BaseTextEditor } from 'vs/workbench/browser/parts/editor/textEditor';
+import { ICommandService } from 'vs/platform/commands/common/commands';
 
 export class SplitEditorAction extends Action {
 
@@ -190,9 +190,13 @@ export class FocusFirstGroupAction extends Action {
 		const history = this.historyService.getHistory();
 		for (let input of history) {
 
-			// For now only support to open resources from history to the side
-			if (!!getUntitledOrFileResource(input)) {
-				return this.editorService.openEditor(input, null, Position.LEFT);
+			// For now only support to open files from history to the side
+			if (input instanceof EditorInput) {
+				if (!!getUntitledOrFileResource(input)) {
+					return this.editorService.openEditor(input, null, Position.LEFT);
+				}
+			} else {
+				return this.editorService.openEditor(input as IResourceInput, Position.LEFT);
 			}
 		}
 
@@ -259,8 +263,12 @@ export abstract class BaseFocusSideGroupAction extends Action {
 			for (let input of history) {
 
 				// For now only support to open files from history to the side
-				if (!!getUntitledOrFileResource(input)) {
-					return this.editorService.openEditor(input, { pinned: true }, this.getTargetEditorSide());
+				if (input instanceof EditorInput) {
+					if (!!getUntitledOrFileResource(input)) {
+						return this.editorService.openEditor(input, { pinned: true }, this.getTargetEditorSide());
+					}
+				} else {
+					return this.editorService.openEditor({ resource: (input as IResourceInput).resource, options: { pinned: true } }, this.getTargetEditorSide());
 				}
 			}
 		}
@@ -401,7 +409,7 @@ export class OpenToSideAction extends Action {
 	public static OPEN_TO_SIDE_ID = 'workbench.action.openToSide';
 	public static OPEN_TO_SIDE_LABEL = nls.localize('openToSide', "Open to the Side");
 
-	constructor(@IWorkbenchEditorService private editorService: IWorkbenchEditorService) {
+	constructor( @IWorkbenchEditorService private editorService: IWorkbenchEditorService) {
 		super(OpenToSideAction.OPEN_TO_SIDE_ID, OpenToSideAction.OPEN_TO_SIDE_LABEL);
 
 		this.class = 'quick-open-sidebyside';
