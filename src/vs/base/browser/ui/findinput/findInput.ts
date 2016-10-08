@@ -273,6 +273,9 @@ export class FindInput extends Widget {
 		controls.appendChild(this.regex.domNode);
 
 		this.domNode.appendChild(controls);
+
+		// Lilx
+		console.log("Lilx: outerHTML = " + this.domNode.outerHTML);
 	}
 
 	public validate(): void {
