@@ -4,11 +4,15 @@
  *--------------------------------------------------------------------------------------------*/
 
 .vs .monaco-workbench > .editor:not(.empty) > .content {
-	background-color: #F3F3F3;
+	background-color: #ECECEC;
 }
 
 .vs-dark .monaco-workbench > .editor:not(.empty) > .content {
-	background-color: #252526;
+	background-color: #2D2D2D;
+}
+
+.monaco-workbench > .editor > .content.dragging > .monaco-sash {
+	display: none; /* hide sashes while dragging editors around */
 }
 
 #monaco-workbench-editor-move-overlay,
@@ -16,7 +20,7 @@
 	position: absolute;
 	left: 0;
 	width: 100%;
-	z-index: 3000000;
+	z-index: 10000;
 }
 
 #monaco-workbench-editor-drop-overlay {
@@ -40,16 +44,6 @@
 	outline-offset: -2px;
 }
 
-.vs .monaco-workbench > .editor > .content.vertical-layout.dragging {
-	border-left: 1px solid #E7E7E7;
-	border-right: 1px solid #E7E7E7;
-}
-
-.vs-dark .monaco-workbench > .editor > .content.vertical-layout.dragging {
-	border-left: 1px solid #444;
-	border-right: 1px solid #444;
-}
-
 .monaco-workbench > .editor > .content > .one-editor-silo {
 	position: absolute;
 	box-sizing:	border-box; /* use border box to be able to draw a border as separator between editors */
@@ -69,7 +63,7 @@
 }
 
 .monaco-workbench > .editor > .content > .one-editor-silo.dragging {
-	z-index: 2000000;
+	z-index: 70;
 	box-sizing: content-box;
 }
 

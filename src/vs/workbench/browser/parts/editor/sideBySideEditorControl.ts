@@ -111,6 +111,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 	private silos: Builder[];
 	private silosSize: number[];
 	private silosInitialRatio: number[];
+	private silosMinimized: boolean[];
 
 	private sashOne: Sash;
 	private startSiloOneSize: number;
@@ -150,6 +151,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 
 		this.silos = [];
 		this.silosSize = [];
+		this.silosMinimized = [];
 
 		this.visibleEditors = [];
 		this.visibleEditorFocusTrackers = [];
@@ -177,6 +179,14 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 
 	private get minSize(): number {
 		return this.layoutVertically ? SideBySideEditorControl.MIN_EDITOR_WIDTH : SideBySideEditorControl.MIN_EDITOR_HEIGHT;
+	}
+
+	private isSiloMinimized(position: number): boolean {
+		return this.silosSize[position] === this.minSize && this.silosMinimized[position];
+	}
+
+	private updateMinimizedState(): void {
+		POSITIONS.forEach(p => this.silosMinimized[p] = this.silosSize[p] === this.minSize);
 	}
 
 	private get snapToMinimizeThresholdSize(): number {
@@ -422,8 +432,8 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 		if (this.lastActiveEditor !== editor) {
 			this.doSetActive(editor, this.visibleEditors.indexOf(editor));
 
-			// Automatically maximize this position if it has min editor size
-			if (this.silosSize[this.lastActivePosition] === this.minSize) {
+			// Automatically maximize this position if it is minimized
+			if (this.isSiloMinimized(this.lastActivePosition)) {
 
 				// Log this fact in telemetry
 				if (this.telemetryService) {
@@ -431,6 +441,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 				}
 
 				let remainingSize = this.totalSize;
+				let layout = false;
 
 				// Minimize all other positions to min size
 				POSITIONS.forEach(p => {
@@ -452,6 +463,14 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 						this.sashTwo.layout();
 					}
 
+					layout = true;
+				}
+
+				// Since we triggered a change in minimized/maximized editors, we need
+				// to update our stored state of minimized silos accordingly
+				this.updateMinimizedState();
+
+				if (layout) {
 					this.layoutContainers();
 				}
 			}
@@ -464,7 +483,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 	private focusNextNonMinimized(): void {
 
 		// If the current focussed editor is minimized, try to focus the next largest editor
-		if (!types.isUndefinedOrNull(this.lastActivePosition) && this.silosSize[this.lastActivePosition] === this.minSize) {
+		if (!types.isUndefinedOrNull(this.lastActivePosition) && this.silosMinimized[this.lastActivePosition]) {
 			let candidate: Position = null;
 			let currentSize = this.minSize;
 			POSITIONS.forEach(position => {
@@ -765,6 +784,11 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 			});
 		}
 
+		// Since we triggered a change in minimized/maximized editors, we need
+		// to update our stored state of minimized silos accordingly
+		this.updateMinimizedState();
+
+		// Layout silos
 		this.layoutControl(this.dimension);
 	}
 
@@ -875,7 +899,9 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 				overlay = void 0;
 			}
 
-			DOM.removeClass(node, 'dragged-over');
+			POSITIONS.forEach(p => {
+				$this.silos[p].removeClass('dragged-over');
+			});
 		}
 
 		function optionsFromDraggedEditor(identifier: IEditorIdentifier): EditorOptions {
@@ -1023,14 +1049,24 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 			} else if (canSplit && isOverSplitLeftOrUp) {
 				overlay.style($this.layoutVertically ? { width: '50%' } : { height: '50%' });
 			} else {
-				overlay.style({ left: '0', width: '100%' });
+				if ($this.layoutVertically) {
+					overlay.style({ left: '0', width: '100%' });
+				} else {
+					overlay.style({ top: $this.showTabs ? `${SideBySideEditorControl.EDITOR_TITLE_HEIGHT}px` : 0, height: $this.showTabs ? `calc(100% - ${SideBySideEditorControl.EDITOR_TITLE_HEIGHT}px` : '100%' });
+				}
 			}
 
 			// Make sure the overlay is visible
 			overlay.style({ opacity: 1 });
 
 			// Indicate a drag over is happening
-			DOM.addClass(node, 'dragged-over');
+			POSITIONS.forEach(p => {
+				if (p === position) {
+					$this.silos[p].addClass('dragged-over');
+				} else {
+					$this.silos[p].removeClass('dragged-over');
+				}
+			});
 		}
 
 		function createOverlay(target: HTMLElement): void {
@@ -1039,7 +1075,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 				containers.forEach((container, index) => {
 					if (container && DOM.isAncestor(target, container.getHTMLElement())) {
 						overlay = $('div').style({
-							top: $this.showTabs ? SideBySideEditorControl.EDITOR_TITLE_HEIGHT + 'px' : 0,
+							top: $this.showTabs ? `${SideBySideEditorControl.EDITOR_TITLE_HEIGHT}px` : 0,
 							height: $this.showTabs ? `calc(100% - ${SideBySideEditorControl.EDITOR_TITLE_HEIGHT}px` : '100%'
 						}).id(overlayId);
 
@@ -1181,11 +1217,12 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 			DOM.EventHelper.stop(e);
 
 			// Overlay the editor area with a div to be able to capture all mouse events
+			// Do NOT cover the title area to prevent missing double click events!
 			const overlayDiv = $('div').style({
-				top: 0,
-				height: '100%'
+				top: `${SideBySideEditorControl.EDITOR_TITLE_HEIGHT}px`,
+				height: `calc(100% - ${SideBySideEditorControl.EDITOR_TITLE_HEIGHT}px)`
 			}).id('monaco-workbench-editor-move-overlay');
-			overlayDiv.appendTo(this.parent);
+			overlayDiv.appendTo(this.silos[position]);
 
 			// Update flag
 			this.dragging = true;
@@ -1214,7 +1251,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 
 					// [ ! ]|[ ]: Moves only to the right/bottom but not outside of dimension to the right/bottom
 					case Position.ONE: {
-						newPos = Math.max(0, Math.min(diffPos, this.totalSize - this.silosSize[Position.ONE]));
+						newPos = Math.max(-1 /* 1px border accomodation */, Math.min(diffPos, this.totalSize - this.silosSize[Position.ONE]));
 						break;
 					}
 
@@ -1222,19 +1259,19 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 
 						// [ ]|[ ! ]: Moves only to the left/top but not outside of dimension to the left/top
 						if (visibleEditorCount === 2) {
-							newPos = Math.min(this.silosSize[Position.ONE], Math.max(0, this.silosSize[Position.ONE] + diffPos));
+							newPos = Math.min(this.silosSize[Position.ONE], Math.max(-1 /* 1px border accomodation */, this.silosSize[Position.ONE] + diffPos));
 						}
 
 						// [ ]|[ ! ]|[ ]: Moves to left/top and right/bottom but not outside of dimensions on both sides
 						else {
-							newPos = Math.min(this.totalSize - this.silosSize[Position.TWO], Math.max(0, this.silosSize[Position.ONE] + diffPos));
+							newPos = Math.min(this.totalSize - this.silosSize[Position.TWO], Math.max(-1 /* 1px border accomodation */, this.silosSize[Position.ONE] + diffPos));
 						}
 						break;
 					}
 
 					// [ ]|[ ]|[ ! ]: Moves to the right/bottom but not outside of dimension on the left/top side
 					case Position.THREE: {
-						newPos = Math.min(this.silosSize[Position.ONE] + this.silosSize[Position.TWO], Math.max(0, this.silosSize[Position.ONE] + this.silosSize[Position.TWO] + diffPos));
+						newPos = Math.min(this.silosSize[Position.ONE] + this.silosSize[Position.TWO], Math.max(-1 /* 1px border accomodation */, this.silosSize[Position.ONE] + this.silosSize[Position.TWO] + diffPos));
 						break;
 					}
 				}
@@ -1251,10 +1288,10 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 				switch (position) {
 					case Position.ONE: {
 						if (moveTo === Position.ONE || moveTo === null) {
-							this.posSilo(Position.TWO, `${this.silosSize[Position.ONE]}px`, 'auto');
+							this.posSilo(Position.TWO, `${this.silosSize[Position.ONE]}px`, 'auto', '1px');
 							this.posSilo(Position.THREE, 'auto', 0);
 						} else if (moveTo === Position.TWO) {
-							this.posSilo(Position.TWO, 0, 'auto');
+							this.posSilo(Position.TWO, 0, 'auto', 0);
 							this.silos[Position.TWO].addClass('draggedunder');
 							this.posSilo(Position.THREE, 'auto', 0);
 						} else if (moveTo === Position.THREE) {
@@ -1298,7 +1335,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 
 				// Move the editor to provide feedback to the user and add class
 				if (newPos !== null) {
-					this.silos[position].style(this.layoutVertically ? { left: `${newPos}px` } : { top: `${newPos}px` });
+					this.posSilo(position, `${newPos}px`);
 					this.silos[position].addClass('dragging');
 					this.parent.addClass('dragging');
 				}
@@ -1322,7 +1359,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 				POSITIONS.forEach(p => this.silos[p].removeClass('draggedunder'));
 
 				this.posSilo(Position.ONE, 0, 'auto');
-				this.posSilo(Position.TWO, 'auto', 'auto');
+				this.posSilo(Position.TWO, 'auto', 'auto', '1px');
 				this.posSilo(Position.THREE, 'auto', 0);
 
 				// Find move target
@@ -1350,12 +1387,31 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 		});
 	}
 
-	private posSilo(pos: number, leftTop: string | number, rightBottom?: string | number): void {
+	private posSilo(pos: number, leftTop: string | number, rightBottom?: string | number, borderLeftTopWidth?: string | number): void {
+		let style: any;
 		if (this.layoutVertically) {
-			this.silos[pos].style({ left: leftTop, right: rightBottom });
+			style = { left: leftTop };
+
+			if (typeof rightBottom === 'number' || typeof rightBottom === 'string') {
+				style['right'] = rightBottom;
+			}
+
+			if (typeof borderLeftTopWidth === 'number' || typeof borderLeftTopWidth === 'string') {
+				style['borderLeftWidth'] = borderLeftTopWidth;
+			}
 		} else {
-			this.silos[pos].style({ top: leftTop, bottom: rightBottom });
+			style = { top: leftTop };
+
+			if (typeof rightBottom === 'number' || typeof rightBottom === 'string') {
+				style['bottom'] = rightBottom;
+			}
+
+			if (typeof borderLeftTopWidth === 'number' || typeof borderLeftTopWidth === 'string') {
+				style['borderTopWidth'] = borderLeftTopWidth;
+			}
 		}
+
+		this.silos[pos].style(style);
 	}
 
 	private findMoveTarget(position: Position, diffPos: number): Position {
@@ -1513,6 +1569,10 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 			this.silosSize[Position.TWO] = this.totalSize - this.silosSize[Position.ONE] - this.silosSize[Position.THREE];
 		}
 
+		// We allow silos to turn into minimized state from user dragging the sash,
+		// so we need to update our stored state of minimized silos accordingly
+		this.updateMinimizedState();
+
 		// Pass on to containers
 		this.layoutContainers();
 	}
@@ -1577,6 +1637,11 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 		this.silosSize[Position.THREE] = newSiloThreeSize;
 		this.silosSize[Position.TWO] = this.totalSize - this.silosSize[Position.ONE] - this.silosSize[Position.THREE];
 
+		// We allow silos to turn into minimized state from user dragging the sash,
+		// so we need to update our stored state of minimized silos accordingly
+		this.updateMinimizedState();
+
+		// Pass on to containers
 		this.layoutContainers();
 	}
 
@@ -1644,12 +1709,13 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 		let totalSize = 0;
 
 		// Set preferred dimensions based on ratio to previous dimenions
+		let wasInitialRatioRestored = false;
 		const oldTotalSize = this.layoutVertically ? oldDimension.width : oldDimension.height;
 		POSITIONS.forEach(position => {
 			if (this.visibleEditors[position]) {
 
 				// Keep minimized editors in tact by not letting them grow if we have size to give
-				if (this.silosSize[position] !== this.minSize) {
+				if (!this.isSiloMinimized(position)) {
 					let siloSizeRatio: number;
 
 					// We have some stored initial ratios when the editor was restored on startup
@@ -1657,6 +1723,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 					if (this.silosInitialRatio && types.isNumber(this.silosInitialRatio[position])) {
 						siloSizeRatio = this.silosInitialRatio[position];
 						delete this.silosInitialRatio[position]; // dont use again
+						wasInitialRatioRestored = true;
 					} else {
 						siloSizeRatio = this.silosSize[position] / oldTotalSize;
 					}
@@ -1667,6 +1734,12 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 				totalSize += this.silosSize[position];
 			}
 		});
+
+		// When restoring from an initial ratio state, we treat editors of min-size as
+		// minimized, so we need to update our stored state of minimized silos accordingly
+		if (wasInitialRatioRestored) {
+			this.updateMinimizedState();
+		}
 
 		// Compensate for overflow either through rounding error or min editor size
 		if (totalSize > 0) {
@@ -1680,7 +1753,7 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 				// that if the user chose this layout.
 				let positionToGive: Position = null;
 				POSITIONS.forEach(position => {
-					if (this.visibleEditors[position] && positionToGive === null && this.silosSize[position] !== this.minSize) {
+					if (this.visibleEditors[position] && positionToGive === null && !this.isSiloMinimized(position)) {
 						positionToGive = position;
 					}
 				});
@@ -1755,8 +1828,16 @@ export class SideBySideEditorControl implements ISideBySideEditorControl, IVerti
 	private layoutEditor(position: Position): void {
 		const editorSize = this.silosSize[position];
 		if (editorSize && this.visibleEditors[position]) {
-			const editorWidth = this.layoutVertically ? editorSize : this.dimension.width;
-			const editorHeight = (this.layoutVertically ? this.dimension.height : this.silosSize[position]) - SideBySideEditorControl.EDITOR_TITLE_HEIGHT;
+			let editorWidth = this.layoutVertically ? editorSize : this.dimension.width;
+			let editorHeight = (this.layoutVertically ? this.dimension.height : this.silosSize[position]) - SideBySideEditorControl.EDITOR_TITLE_HEIGHT;
+
+			if (position !== Position.ONE) {
+				if (this.layoutVertically) {
+					editorWidth--; // accomodate for 1px left-border in containers TWO, THREE when laying out vertically
+				} else {
+					editorHeight--; // accomodate for 1px top-border in containers TWO, THREE when laying out horizontally
+				}
+			}
 
 			this.visibleEditors[position].layout(new Dimension(editorWidth, editorHeight));
 		}
