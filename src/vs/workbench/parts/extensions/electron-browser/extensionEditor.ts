@@ -31,7 +31,7 @@ import { IExtensionsWorkbenchService, IExtensionsViewlet, VIEWLET_ID, IExtension
 import { Renderer, DataSource, Controller } from './dependenciesViewer';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { ITemplateData } from './extensionsList';
-import { RatingsWidget, InstallWidget, StatusWidget } from './extensionsWidgets';
+import { RatingsWidget, InstallWidget } from './extensionsWidgets';
 import { EditorOptions } from 'vs/workbench/common/editor';
 import { shell } from 'electron';
 import product from 'vs/platform/product';
@@ -121,7 +121,6 @@ export class ExtensionEditor extends BaseEditor {
 	private rating: HTMLElement;
 	private description: HTMLElement;
 	private extensionActionBar: ActionBar;
-	private status: HTMLElement;
 	private navbar: NavBar;
 	private content: HTMLElement;
 
@@ -172,7 +171,6 @@ export class ExtensionEditor extends BaseEditor {
 		const title = append(details, $('.title'));
 		this.name = append(title, $('span.name.clickable', { title: localize('name', "Extension name") }));
 		this.identifier = append(title, $('span.identifier', { title: localize('extension id', "Extension identifier") }));
-		this.status = append(title, $(''));
 
 		const subtitle = append(details, $('.subtitle'));
 		this.publisher = append(subtitle, $('span.publisher.clickable', { title: localize('publisher', "Publisher name") }));
@@ -188,7 +186,18 @@ export class ExtensionEditor extends BaseEditor {
 		this.description = append(details, $('.description'));
 
 		const extensionActions = append(details, $('.actions'));
-		this.extensionActionBar = new ActionBar(extensionActions, { animated: false });
+		this.extensionActionBar = new ActionBar(extensionActions, {
+			animated: false,
+			actionItemProvider: (action: Action) => {
+				if (action.id === EnableAction.ID) {
+					return (<EnableAction>action).actionItem;
+				}
+				if (action.id === DisableAction.ID) {
+					return (<DisableAction>action).actionItem;
+				}
+				return null;
+			}
+		});
 		this.disposables.push(this.extensionActionBar);
 
 		chain(fromEventEmitter<{ error?: any; }>(this.extensionActionBar, 'run'))
@@ -220,7 +229,6 @@ export class ExtensionEditor extends BaseEditor {
 
 		this.name.textContent = extension.displayName;
 		this.identifier.textContent = `${extension.publisher}.${extension.name}`;
-		this.transientDisposables.push(this.instantiationService.createInstance(StatusWidget, this.status, extension));
 
 		this.publisher.textContent = extension.publisherDisplayName;
 		this.description.textContent = extension.description;
