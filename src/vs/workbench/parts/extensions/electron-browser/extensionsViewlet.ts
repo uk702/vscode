@@ -29,7 +29,7 @@ import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { PagedList } from 'vs/base/browser/ui/list/listPaging';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { Delegate, Renderer } from './extensionsList';
-import { IExtensionsWorkbenchService, IExtension, IExtensionsViewlet, VIEWLET_ID, ExtensionState } from './extensions';
+import { IExtensionsWorkbenchService, IExtension, IExtensionsViewlet, VIEWLET_ID, ExtensionState } from '../common/extensions';
 import {
 	ShowRecommendedExtensionsAction, ShowWorkspaceRecommendedExtensionsAction, ShowPopularExtensionsAction, ShowInstalledExtensionsAction, ShowDisabledExtensionsAction,
 	ShowOutdatedExtensionsAction, ClearExtensionsInputAction, ChangeSortAction, UpdateAllAction, InstallVSIXAction, ConfigureWorkspaceRecommendedExtensionsAction,
@@ -223,7 +223,7 @@ export class ExtensionsViewlet extends Viewlet implements IExtensionsViewlet {
 		return this.progress(this.query(value))
 			.then(model => {
 				if (!value && model.length === 0 && suggestPopular) {
-					return this.search('@sort:installs');
+					return this.search('@sort:installs ');
 				}
 
 				this.setModel(model);
@@ -270,8 +270,12 @@ export class ExtensionsViewlet extends Viewlet implements IExtensionsViewlet {
 			return this.getRecommendationsModel(query, options);
 		}
 
-		if (query.value) {
-			options = assign(options, { text: query.value.substr(0, 200) });
+		const text = value = query.value
+			.replace(/\bext:([^\s]+)\b/g, 'tag:"__ext_$1"')
+			.substr(0, 200);
+
+		if (text) {
+			options = assign(options, { text });
 		}
 
 		return this.extensionsWorkbenchService.queryGallery(options)

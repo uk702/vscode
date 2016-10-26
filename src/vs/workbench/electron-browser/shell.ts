@@ -29,7 +29,6 @@ import { IdleMonitor, UserStatus } from 'vs/platform/telemetry/browser/idleMonit
 import ErrorTelemetry from 'vs/platform/telemetry/browser/errorTelemetry';
 import { resolveWorkbenchCommonProperties } from 'vs/platform/telemetry/node/workbenchCommonProperties';
 import { ElectronIntegration } from 'vs/workbench/electron-browser/integration';
-import { Update } from 'vs/workbench/electron-browser/update';
 import { WorkspaceStats } from 'vs/workbench/services/telemetry/common/workspaceStats';
 import { IWindowService, WindowService } from 'vs/workbench/services/window/electron-browser/windowService';
 import { MessageService } from 'vs/workbench/services/message/electron-browser/messageService';
@@ -169,9 +168,6 @@ export class WorkbenchShell {
 		// Electron integration
 		this.workbench.getInstantiationService().createInstance(ElectronIntegration).integrate(this.container);
 
-		// Update
-		this.workbench.getInstantiationService().createInstance(Update);
-
 		// Handle case where workbench is not starting up properly
 		const timeoutHandle = setTimeout(() => {
 			console.warn('Workbench did not finish loading in 10 seconds, that might be a problem that should be reported.');
@@ -292,8 +288,13 @@ export class WorkbenchShell {
 		this.toUnbind.push(lifecycleService.onShutdown(() => disposables.dispose()));
 		serviceCollection.set(ILifecycleService, lifecycleService);
 
+		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));
+		const extensionManagementChannelClient = new ExtensionManagementChannelClient(extensionManagementChannel);
+		serviceCollection.set(IExtensionManagementService, extensionManagementChannelClient);
+
 		const extensionsRuntimeService = instantiationService.createInstance(ExtensionsRuntimeService);
 		serviceCollection.set(IExtensionsRuntimeService, extensionsRuntimeService);
+		disposables.add(extensionsRuntimeService);
 
 		const extensionHostProcessWorker = this.startExtensionHost(instantiationService);
 		this.threadService = instantiationService.createInstance(MainThreadService, extensionHostProcessWorker.messagingProtocol);
@@ -336,10 +337,6 @@ export class WorkbenchShell {
 
 		const integrityService = instantiationService.createInstance(IntegrityServiceImpl);
 		serviceCollection.set(IIntegrityService, integrityService);
-
-		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));
-		const extensionManagementChannelClient = new ExtensionManagementChannelClient(extensionManagementChannel);
-		serviceCollection.set(IExtensionManagementService, extensionManagementChannelClient);
 
 		const urlChannel = mainProcessClient.getChannel('url');
 		const urlChannelClient = new URLChannelClient(urlChannel, this.windowService.getWindowId());

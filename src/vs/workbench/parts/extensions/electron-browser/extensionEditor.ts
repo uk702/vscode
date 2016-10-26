@@ -27,7 +27,7 @@ import { IInstantiationService } from 'vs/platform/instantiation/common/instanti
 import { IExtensionGalleryService, IExtensionManifest, IKeyBinding } from 'vs/platform/extensionManagement/common/extensionManagement';
 import { IThemeService } from 'vs/workbench/services/themes/common/themeService';
 import { ExtensionsInput } from './extensionsInput';
-import { IExtensionsWorkbenchService, IExtensionsViewlet, VIEWLET_ID, IExtension, IExtensionDependencies } from './extensions';
+import { IExtensionsWorkbenchService, IExtensionsViewlet, VIEWLET_ID, IExtension, IExtensionDependencies } from '../common/extensions';
 import { Renderer, DataSource, Controller } from './dependenciesViewer';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { ITemplateData } from './extensionsList';
@@ -385,6 +385,11 @@ export class ExtensionEditor extends BaseEditor {
 
 			this.contentDisposables.push(tree);
 			scrollableContent.scanDomNode();
+		}, error => {
+			removeClass(this.content, 'loading');
+			append(this.content, $('p.nocontent')).textContent = error;
+			this.messageService.show(Severity.Error, error);
+			return;
 		});
 	}
 
@@ -519,6 +524,11 @@ export class ExtensionEditor extends BaseEditor {
 
 		rawKeybindings.forEach(rawKeybinding => {
 			const keyLabel = this.keybindingToLabel(rawKeybinding);
+
+			if (!keyLabel) {
+				return;
+			}
+
 			let command = byId[rawKeybinding.command];
 
 			if (!command) {
@@ -635,7 +645,8 @@ export class ExtensionEditor extends BaseEditor {
 		}
 
 		const keyBinding = new Keybinding(Keybinding.fromUserSettingsLabel(key || rawKeyBinding.key));
-		return this.keybindingService.getLabelFor(keyBinding);
+		const result = this.keybindingService.getLabelFor(keyBinding);
+		return result === 'unknown' ? null : result;
 	}
 
 	private loadContents(loadingTask: () => TPromise<any>): void {
