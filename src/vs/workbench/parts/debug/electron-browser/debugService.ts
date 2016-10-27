@@ -451,7 +451,7 @@ export class DebugService implements debug.IDebugService {
 		this.viewModel.setFocusedStackFrame(focusedStackFrame, process);
 		this._onDidChangeState.fire();
 		if (focusedStackFrame) {
-			return this.model.evaluateWatchExpressions(focusedStackFrame);
+			return this.model.evaluateWatchExpressions(process, focusedStackFrame);
 		} else {
 			this.model.clearWatchExpressionValues();
 			return TPromise.as(null);
@@ -512,7 +512,7 @@ export class DebugService implements debug.IDebugService {
 
 	public addReplExpression(name: string): TPromise<void> {
 		this.telemetryService.publicLog('debugService/addReplExpression');
-		return this.model.addReplExpression(this.viewModel.focusedStackFrame, name)
+		return this.model.addReplExpression(this.viewModel.focusedProcess, this.viewModel.focusedStackFrame, name)
 			// Evaluate all watch expressions again since repl evaluation might have changed some.
 			.then(() => this.setFocusedStackFrameAndEvaluate(this.viewModel.focusedStackFrame));
 	}
@@ -530,11 +530,11 @@ export class DebugService implements debug.IDebugService {
 	}
 
 	public addWatchExpression(name: string): TPromise<void> {
-		return this.model.addWatchExpression(this.viewModel.focusedStackFrame, name);
+		return this.model.addWatchExpression(this.viewModel.focusedProcess, this.viewModel.focusedStackFrame, name);
 	}
 
 	public renameWatchExpression(id: string, newName: string): TPromise<void> {
-		return this.model.renameWatchExpression(this.viewModel.focusedStackFrame, id, newName);
+		return this.model.renameWatchExpression(this.viewModel.focusedProcess, this.viewModel.focusedStackFrame, id, newName);
 	}
 
 	public removeWatchExpressions(id?: string): void {
@@ -804,25 +804,26 @@ export class DebugService implements debug.IDebugService {
 			// an internal module might be open so the dispose can throw -> ignore and continue with stop session.
 		}
 
-		this.partService.removeClass('debugging');
-
 		this.model.removeProcess(session.getId());
 		this.setFocusedStackFrameAndEvaluate(null).done(null, errors.onUnexpectedError);
 		this.setStateAndEmit(session.getId(), debug.State.Inactive);
 
-		// set breakpoints back to unverified since the session ended.
-		// source reference changes across sessions, so we do not use it to persist the source.
-		const data: { [id: string]: { line: number, verified: boolean } } = {};
-		this.model.getBreakpoints().forEach(bp => {
-			delete bp.source.raw.sourceReference;
-			data[bp.getId()] = { line: bp.lineNumber, verified: false };
-		});
-		this.model.updateBreakpoints(data);
+		if (this.model.getProcesses().length === 0) {
+			this.partService.removeClass('debugging');
+			// set breakpoints back to unverified since the session ended.
+			// source reference changes across sessions, so we do not use it to persist the source.
+			const data: { [id: string]: { line: number, verified: boolean } } = {};
+			this.model.getBreakpoints().forEach(bp => {
+				delete bp.source.raw.sourceReference;
+				data[bp.getId()] = { line: bp.lineNumber, verified: false };
+			});
+			this.model.updateBreakpoints(data);
 
-		this.inDebugMode.reset();
+			this.inDebugMode.reset();
 
-		if (!this.partService.isSideBarHidden() && this.configurationService.getConfiguration<debug.IDebugConfiguration>('debug').openExplorerOnEnd) {
-			this.viewletService.openViewlet(EXPLORER_VIEWLET_ID).done(null, errors.onUnexpectedError);
+			if (!this.partService.isSideBarHidden() && this.configurationService.getConfiguration<debug.IDebugConfiguration>('debug').openExplorerOnEnd) {
+				this.viewletService.openViewlet(EXPLORER_VIEWLET_ID).done(null, errors.onUnexpectedError);
+			}
 		}
 	}
 
