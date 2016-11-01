@@ -35,7 +35,7 @@ import {
 	ShowOutdatedExtensionsAction, ClearExtensionsInputAction, ChangeSortAction, UpdateAllAction, InstallVSIXAction
 } from './extensionsActions';
 import { IExtensionManagementService, IExtensionGalleryService, IExtensionTipsService, SortBy, SortOrder, IQueryOptions, LocalExtensionType } from 'vs/platform/extensionManagement/common/extensionManagement';
-import { ExtensionsInput } from './extensionsInput';
+import { ExtensionsInput } from 'vs/workbench/parts/extensions/common/extensionsInput';
 import { Query } from '../common/extensionQuery';
 import { OpenGlobalSettingsAction } from 'vs/workbench/browser/actions/openSettings';
 import { IProgressService } from 'vs/platform/progress/common/progress';
@@ -44,6 +44,7 @@ import { IEditorGroupService } from 'vs/workbench/services/group/common/groupSer
 import { IMessageService, CloseAction } from 'vs/platform/message/common/message';
 import Severity from 'vs/base/common/severity';
 import { IActivityService, ProgressBadge, NumberBadge } from 'vs/workbench/services/activity/common/activityService';
+import { IExtensionRuntimeService } from 'vs/platform/extensions/common/extensions';
 
 interface SearchInputEvent extends Event {
 	target: HTMLInputElement;
@@ -74,7 +75,8 @@ export class ExtensionsViewlet extends Viewlet implements IExtensionsViewlet {
 		@IExtensionsWorkbenchService private extensionsWorkbenchService: IExtensionsWorkbenchService,
 		@IExtensionTipsService private tipsService: IExtensionTipsService,
 		@IMessageService private messageService: IMessageService,
-		@IViewletService private viewletService: IViewletService
+		@IViewletService private viewletService: IViewletService,
+		@IExtensionRuntimeService private extensionRuntimeService: IExtensionRuntimeService
 	) {
 		super(VIEWLET_ID, telemetryService);
 		this.searchDelayer = new ThrottledDelayer(500);
@@ -240,7 +242,8 @@ export class ExtensionsViewlet extends Viewlet implements IExtensionsViewlet {
 		if (/@disabled/i.test(value)) {
 			return this.extensionsWorkbenchService.queryLocal()
 				.then(result => result.sort((e1, e2) => e1.displayName.localeCompare(e2.displayName)))
-				.then(result => result.filter(e => e.state === ExtensionState.Disabled))
+				.then(result => this.extensionRuntimeService.getEnabledExtensions()
+					.then(runningExtensions => result.filter(e => runningExtensions.every(r => r.id !== e.identifier))))
 				.then(result => new PagedModel(result));
 		}
 

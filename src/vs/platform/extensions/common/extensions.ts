@@ -23,6 +23,7 @@ export interface IExtensionDescription {
 	};
 	readonly main?: string;
 	readonly contributes?: { [point: string]: any; };
+	readonly enableProposedApi?: boolean;
 }
 
 export const IExtensionService = createDecorator<IExtensionService>('extensionService');
@@ -71,26 +72,27 @@ export interface IExtensionService {
 	getExtensionsStatus(): { [id: string]: IExtensionsStatus };
 }
 
-export const IExtensionsRuntimeService = createDecorator<IExtensionsRuntimeService>('extensionsRuntimeService');
+export const IExtensionRuntimeService = createDecorator<IExtensionRuntimeService>('extensionRuntimeService');
 
-export interface IExtensionsRuntimeService {
+export interface IExtensionRuntimeService {
 	_serviceBrand: any;
 
 	/**
-	 * Scans and returns only enabled extensions.
-	 * **NOTE**: This call returns different results based on `setEnablement` calls!
+	 * Returns all extensions enabled for the current VS Code window
 	 */
-	getExtensions(): TPromise<IExtensionDescription[]>;
+	getEnabledExtensions(): TPromise<IExtensionDescription[]>;
 
 	/**
-	 * Returns `true` if given extension is disabled, otherwise `false`.
+	 * Returns all globally disabled extension identifiers.
+	 * Returns an empty array if none exist.
 	 */
-	isDisabled(identifier: string): boolean;
+	getGloballyDisabledExtensions(): string[];
 
 	/**
-	 * Returns `true` if given extension is disabled always, otherwise `false`.
+	 * Returns all workspace disabled extension identifiers.
+	 * Returns an empty array if none exist or workspace does not exist.
 	 */
-	isDisabledAlways(identifier: string): boolean;
+	getWorkspaceDisabledExtensions(): string[];
 
 	/**
 	 * Returns `true` if given extension can be enabled by calling `setEnablement`, otherwise false`.
