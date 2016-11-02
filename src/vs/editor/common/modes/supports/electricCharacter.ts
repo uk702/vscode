@@ -5,58 +5,41 @@
 'use strict';
 
 import * as strings from 'vs/base/common/strings';
-import * as modes from 'vs/editor/common/modes';
 import { ScopedLineTokens, ignoreBracketsInToken } from 'vs/editor/common/modes/supports';
 import { BracketsUtils } from 'vs/editor/common/modes/supports/richEditBrackets';
+import { RichEditBrackets } from 'vs/editor/common/modes/supports/richEditBrackets';
+import { IAutoClosingPairConditional, IBracketElectricCharacterContribution, StandardAutoClosingPairConditional } from 'vs/editor/common/modes/languageConfiguration';
 
 /**
- * Definition of documentation comments (e.g. Javadoc/JSdoc)
+ * Interface used to support electric characters
+ * @internal
  */
-export interface IDocComment {
-	scope: string; // What tokens should be used to detect a doc comment (e.g. 'comment.documentation').
-	open: string; // The string that starts a doc comment (e.g. '/**')
-	lineStart: string; // The string that appears at the start of each line, except the first and last (e.g. ' * ').
-	close?: string; // The string that appears on the last line and closes the doc comment (e.g. ' */').
-}
+export interface IElectricAction {
+	// Only one of the following properties should be defined:
 
-export interface IBracketElectricCharacterContribution {
-	docComment?: IDocComment;
-	embeddedElectricCharacters?: string[];
+	// The line will be indented at the same level of the line
+	// which contains the matching given bracket type.
+	matchOpenBracket?: string;
+
+	// The text will be appended after the electric character.
+	appendText?: string;
+
+	// The number of characters to advance the cursor, useful with appendText
+	advanceCount?: number;
 }
 
 export class BracketElectricCharacterSupport {
 
-	private readonly contribution: IBracketElectricCharacterContribution;
-	private readonly brackets: Brackets;
+	private readonly _richEditBrackets: RichEditBrackets;
+	private readonly _complexAutoClosePairs: StandardAutoClosingPairConditional[];
 
-	constructor(brackets: modes.IRichEditBrackets, autoClosePairs: modes.IAutoClosingPairConditional[], contribution: IBracketElectricCharacterContribution) {
-		this.contribution = contribution || {};
-		this.brackets = new Brackets(brackets, autoClosePairs, this.contribution.docComment);
-	}
-
-	public getElectricCharacters(): string[] {
-		if (Array.isArray(this.contribution.embeddedElectricCharacters)) {
-			return this.contribution.embeddedElectricCharacters.concat(this.brackets.getElectricCharacters());
-		}
-		return this.brackets.getElectricCharacters();
-	}
-
-	public onElectricCharacter(context: ScopedLineTokens, offset: number): modes.IElectricAction {
-		return this.brackets.onElectricCharacter(context, offset);
-	}
-}
-
-export class Brackets {
-
-	private readonly _richEditBrackets: modes.IRichEditBrackets;
-	private readonly _complexAutoClosePairs: modes.IAutoClosingPairConditional[];
-
-	constructor(richEditBrackets: modes.IRichEditBrackets, autoClosePairs: modes.IAutoClosingPairConditional[], docComment?: IDocComment) {
+	constructor(richEditBrackets: RichEditBrackets, autoClosePairs: IAutoClosingPairConditional[], contribution: IBracketElectricCharacterContribution) {
+		contribution = contribution || {};
 		this._richEditBrackets = richEditBrackets;
-		this._complexAutoClosePairs = autoClosePairs.filter(pair => pair.open.length > 1 && !!pair.close);
-		if (docComment) {
+		this._complexAutoClosePairs = autoClosePairs.filter(pair => pair.open.length > 1 && !!pair.close).map(el => new StandardAutoClosingPairConditional(el));
+		if (contribution.docComment) {
 			// IDocComment is legacy, only partially supported
-			this._complexAutoClosePairs.push({ open: docComment.open, close: docComment.close });
+			this._complexAutoClosePairs.push(new StandardAutoClosingPairConditional({ open: contribution.docComment.open, close: contribution.docComment.close }));
 		}
 	}
 
@@ -84,7 +67,7 @@ export class Brackets {
 		return result;
 	}
 
-	public onElectricCharacter(context: ScopedLineTokens, offset: number): modes.IElectricAction {
+	public onElectricCharacter(context: ScopedLineTokens, offset: number): IElectricAction {
 		if (context.getTokenCount() === 0) {
 			return null;
 		}
@@ -93,17 +76,7 @@ export class Brackets {
 			this._onElectricAutoIndent(context, offset));
 	}
 
-	private containsTokenTypes(fullTokenSpec: string, tokensToLookFor: string): boolean {
-		var array = tokensToLookFor.split('.');
-		for (var i = 0; i < array.length; ++i) {
-			if (fullTokenSpec.indexOf(array[i]) < 0) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	private _onElectricAutoIndent(context: ScopedLineTokens, offset: number): modes.IElectricAction {
+	private _onElectricAutoIndent(context: ScopedLineTokens, offset: number): IElectricAction {
 
 		if (!this._richEditBrackets || this._richEditBrackets.brackets.length === 0) {
 			return null;
@@ -121,7 +94,7 @@ export class Brackets {
 			return null;
 		}
 
-		if (!ignoreBracketsInToken(context.getTokenType(tokenIndex))) {
+		if (!ignoreBracketsInToken(context.getStandardTokenType(tokenIndex))) {
 			let r = BracketsUtils.findPrevBracketInToken(reversedBracketRegex, 1, lineText, tokenStart, tokenEnd);
 			if (r) {
 				let text = lineText.substring(r.startColumn - 1, r.endColumn - 1);
@@ -139,7 +112,7 @@ export class Brackets {
 		return null;
 	}
 
-	private _onElectricAutoClose(context: ScopedLineTokens, offset: number): modes.IElectricAction {
+	private _onElectricAutoClose(context: ScopedLineTokens, offset: number): IElectricAction {
 
 		if (!this._complexAutoClosePairs.length) {
 			return null;
@@ -167,12 +140,9 @@ export class Brackets {
 				continue;
 			}
 
-			// If we're in a scope listen in 'notIn', do nothing
-			if (pair.notIn) {
-				let tokenType = context.getTokenType(lastTokenIndex);
-				if (pair.notIn.some(scope => this.containsTokenTypes(tokenType, scope))) {
-					continue;
-				}
+			// If we're in a scope listed in 'notIn', do nothing
+			if (!pair.isOK(context.getStandardTokenType(lastTokenIndex))) {
+				continue;
 			}
 
 			return { appendText: pair.close };

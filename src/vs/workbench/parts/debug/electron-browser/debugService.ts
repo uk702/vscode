@@ -53,7 +53,7 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IWindowService, IBroadcast } from 'vs/workbench/services/window/electron-browser/windowService';
-import { ILogEntry, EXTENSION_LOG_BROADCAST_CHANNEL, EXTENSION_ATTACH_BROADCAST_CHANNEL, EXTENSION_TERMINATE_BROADCAST_CHANNEL } from 'vs/workbench/services/extensions/electron-browser/extensionHost';
+import { ILogEntry, EXTENSION_LOG_BROADCAST_CHANNEL, EXTENSION_ATTACH_BROADCAST_CHANNEL, EXTENSION_TERMINATE_BROADCAST_CHANNEL } from 'vs/workbench/electron-browser/extensionHost';
 import { ipcRenderer as ipc } from 'electron';
 
 const DEBUG_BREAKPOINTS_KEY = 'debug.breakpoint';
@@ -402,7 +402,7 @@ export class DebugService implements debug.IDebugService {
 		let result: Expression[];
 		try {
 			result = JSON.parse(this.storageService.get(DEBUG_WATCH_EXPRESSIONS_KEY, StorageScope.WORKSPACE, '[]')).map((watchStoredData: { name: string, id: string }) => {
-				return new Expression(watchStoredData.name, false, watchStoredData.id);
+				return new Expression(watchStoredData.name, watchStoredData.id);
 			});
 		} catch (e) { }
 
@@ -439,9 +439,11 @@ export class DebugService implements debug.IDebugService {
 		return !!this.contextService.getWorkspace();
 	}
 
-	public setFocusedStackFrameAndEvaluate(focusedStackFrame: debug.IStackFrame): TPromise<void> {
+	public setFocusedStackFrameAndEvaluate(focusedStackFrame: debug.IStackFrame, process?: debug.IProcess): TPromise<void> {
 		const processes = this.model.getProcesses();
-		const process = focusedStackFrame ? focusedStackFrame.thread.process : processes.length ? processes[0] : null;
+		if (!process) {
+			process = focusedStackFrame ? focusedStackFrame.thread.process : processes.length ? processes[0] : null;
+		}
 		if (process && !focusedStackFrame) {
 			const thread = process.getAllThreads().pop();
 			const callStack = thread ? thread.getCachedCallStack() : null;
@@ -530,6 +532,10 @@ export class DebugService implements debug.IDebugService {
 
 	public renameWatchExpression(id: string, newName: string): TPromise<void> {
 		return this.model.renameWatchExpression(this.viewModel.focusedProcess, this.viewModel.focusedStackFrame, id, newName);
+	}
+
+	public moveWatchExpression(id: string, position: number): void {
+		this.model.moveWatchExpression(id, position);
 	}
 
 	public removeWatchExpressions(id?: string): void {
@@ -632,7 +638,12 @@ export class DebugService implements debug.IDebugService {
 			}
 
 			const session = this.instantiationService.createInstance(RawDebugSession, sessionId, configuration.debugServer, adapter, this.customTelemetryService);
-			this.model.addProcess(configuration.name, session);
+			const process = this.model.addProcess(configuration.name, session);
+
+			if (!this.viewModel.focusedProcess) {
+				this.viewModel.setFocusedStackFrame(null, process);
+				this._onDidChangeState.fire();
+			}
 			this.toDisposeOnSessionEnd[session.getId()] = [];
 			if (client) {
 				this.toDisposeOnSessionEnd[session.getId()].push(client);

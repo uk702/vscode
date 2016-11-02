@@ -25,6 +25,7 @@ import { ReloadWindowAction } from 'vs/workbench/electron-browser/actions';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import Event, { Emitter } from 'vs/base/common/event';
+import { WatchDog } from 'vs/base/common/watchDog';
 import { createQueuedSender, IQueuedSender } from 'vs/base/node/processes';
 import { IInitData, IInitConfiguration } from 'vs/workbench/api/node/extHost.protocol';
 import { MainProcessExtensionService } from 'vs/workbench/api/node/mainThreadExtensionService';
@@ -54,6 +55,8 @@ export class ExtensionHostProcessWorker {
 	private isExtensionDevelopmentHost: boolean;
 	private isExtensionDevelopmentTestFromCli: boolean;
 	private isExtensionDevelopmentDebugging: boolean;
+
+	private extHostWatchDog = new WatchDog(250, 4);
 
 	private _onMessage = new Emitter<any>();
 	public get onMessage(): Event<any> {
@@ -110,6 +113,29 @@ export class ExtensionHostProcessWorker {
 
 		// Initialize extension host process with hand shakes
 		this.initializeExtensionHostProcess = this.doInitializeExtensionHostProcess(opts);
+
+		// Check how well the extension host is doing
+		if (this.environmentService.isBuilt) {
+			this.initializeExtensionHostProcess.done(() => {
+				this.extHostWatchDog.start();
+				this.extHostWatchDog.onAlert(() => {
+
+					this.extHostWatchDog.stop();
+
+					// log the identifiers of those extensions that
+					// have code and are loaded in the extension host
+					this.extensionService.getExtensions().then(extensions => {
+						const ids: string[] = [];
+						for (const ext of extensions) {
+							if (ext.main) {
+								ids.push(ext.id);
+							}
+						}
+						this.telemetryService.publicLog('extHostUnresponsive', ids);
+					});
+				});
+			});
+		}
 	}
 
 	public get messagingProtocol(): IMessagePassingProtocol {
@@ -191,6 +217,12 @@ export class ExtensionHostProcessWorker {
 			return true;
 		}
 
+		// Heartbeat message
+		if (msg === '__$heartbeat') {
+			this.extHostWatchDog.reset();
+			return false;
+		}
+
 		// Support logging from extension host
 		if (msg && (<ILogEntry>msg).type === '__$console') {
 			this.logExtensionHostMessage(<ILogEntry>msg);
@@ -209,7 +241,7 @@ export class ExtensionHostProcessWorker {
 
 		TPromise.join<any>([
 			this.telemetryService.getTelemetryInfo(),
-			this.extensionService.readExtensions()
+			this.extensionService.getExtensions()
 		]).then(([telemetryInfo, extensionDescriptions]) => {
 			let initData: IInitData = {
 				parentPid: process.pid,
