@@ -15,9 +15,10 @@ import { isWindows } from 'vs/base/common/platform';
 import { findFreePort } from 'vs/base/node/ports';
 import { IMessageService, Severity } from 'vs/platform/message/common/message';
 import { ILifecycleService, ShutdownEvent } from 'vs/platform/lifecycle/common/lifecycle';
+import { IWindowsService } from 'vs/platform/windows/common/windows';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
-import { IWindowService } from 'vs/workbench/services/window/electron-browser/windowService';
+import { IWindowIPCService } from 'vs/workbench/services/window/electron-browser/windowService';
 import { ChildProcess, fork } from 'child_process';
 import { ipcRenderer as ipc } from 'electron';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
@@ -68,7 +69,8 @@ export class ExtensionHostProcessWorker {
 	constructor(
 		@IWorkspaceContextService private contextService: IWorkspaceContextService,
 		@IMessageService private messageService: IMessageService,
-		@IWindowService private windowService: IWindowService,
+		@IWindowsService private windowsService: IWindowsService,
+		@IWindowIPCService private windowService: IWindowIPCService,
 		@ILifecycleService lifecycleService: ILifecycleService,
 		@IInstantiationService private instantiationService: IInstantiationService,
 		@IEnvironmentService private environmentService: IEnvironmentService,
@@ -289,7 +291,7 @@ export class ExtensionHostProcessWorker {
 
 		// Log on main side if running tests from cli
 		if (this.isExtensionDevelopmentTestFromCli) {
-			ipc.send('vscode:log', logEntry);
+			this.windowsService.log(logEntry.severity, ...args);
 		}
 
 		// Broadcast to other windows if we are in development mode

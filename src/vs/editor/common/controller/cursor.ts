@@ -11,13 +11,14 @@ import { EventEmitter } from 'vs/base/common/eventEmitter';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { ReplaceCommand } from 'vs/editor/common/commands/replaceCommand';
 import { CursorCollection, ICursorCollectionState } from 'vs/editor/common/controller/cursorCollection';
-import { WordNavigationType, IOneCursorOperationContext, IPostOperationRunnable, IViewModelHelper, OneCursor, OneCursorOp } from 'vs/editor/common/controller/oneCursor';
+import { IOneCursorOperationContext, IPostOperationRunnable, IViewModelHelper, OneCursor, OneCursorOp } from 'vs/editor/common/controller/oneCursor';
 import { Position } from 'vs/editor/common/core/position';
 import { Range } from 'vs/editor/common/core/range';
 import { Selection, SelectionDirection } from 'vs/editor/common/core/selection';
 import * as editorCommon from 'vs/editor/common/editorCommon';
-import { IColumnSelectResult } from 'vs/editor/common/controller/cursorMoveHelper';
+import { IColumnSelectResult, CursorMove } from 'vs/editor/common/controller/cursorMoveHelper';
 import { LanguageConfigurationRegistry } from 'vs/editor/common/modes/languageConfigurationRegistry';
+import { WordNavigationType } from 'vs/editor/common/controller/cursorWordOperations';
 
 export interface ITypingListener {
 	(): void;
@@ -316,6 +317,9 @@ export class Cursor extends EventEmitter {
 		var handled = false;
 
 		try {
+			// ensure valid state on all cursors
+			this.cursors.ensureValidState();
+
 			var oldSelections = this.cursors.getSelections();
 			var oldViewSelections = this.cursors.getViewSelections();
 			var prevCursorsState = this.cursors.saveState();
@@ -1052,7 +1056,7 @@ export class Cursor extends EventEmitter {
 
 		if (sorted) {
 			cursors = cursors.sort((a, b) => {
-				return Range.compareRangesUsingStarts(a.getSelection(), b.getSelection());
+				return Range.compareRangesUsingStarts(a.modelState.selection, b.modelState.selection);
 			});
 		}
 
@@ -1112,7 +1116,7 @@ export class Cursor extends EventEmitter {
 	private _getColumnSelectToLineNumber(): number {
 		if (!this._columnSelectToLineNumber) {
 			let primaryCursor = this.cursors.getAll()[0];
-			let primaryPos = primaryCursor.getViewPosition();
+			let primaryPos = primaryCursor.viewState.position;
 			return primaryPos.lineNumber;
 		}
 		return this._columnSelectToLineNumber;
@@ -1122,8 +1126,8 @@ export class Cursor extends EventEmitter {
 	private _getColumnSelectToVisualColumn(): number {
 		if (!this._columnSelectToVisualColumn) {
 			let primaryCursor = this.cursors.getAll()[0];
-			let primaryPos = primaryCursor.getViewPosition();
-			return primaryCursor.getViewVisibleColumnFromColumn(primaryPos.lineNumber, primaryPos.column);
+			let primaryPos = primaryCursor.viewState.position;
+			return CursorMove.visibleColumnFromColumn2(primaryCursor.config, primaryCursor.viewModel, primaryPos);
 		}
 		return this._columnSelectToVisualColumn;
 	}
@@ -1510,10 +1514,10 @@ export class Cursor extends EventEmitter {
 		let noOfLines = editorScrollArg.value || 1;
 		switch (editorScrollArg.by) {
 			case editorCommon.EditorScrollByUnit.Page:
-				noOfLines = cursor.getPageSize() * noOfLines;
+				noOfLines = cursor.config.pageSize * noOfLines;
 				break;
 			case editorCommon.EditorScrollByUnit.HalfPage:
-				noOfLines = Math.round(cursor.getPageSize() / 2) * noOfLines;
+				noOfLines = Math.round(cursor.config.pageSize / 2) * noOfLines;
 				break;
 		}
 		this.emitCursorScrollRequest((up ? -1 : 1) * noOfLines, !!editorScrollArg.revealCursor);

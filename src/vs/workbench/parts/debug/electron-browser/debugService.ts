@@ -28,6 +28,7 @@ import { IInstantiationService } from 'vs/platform/instantiation/common/instanti
 import { IFileService, FileChangesEvent, FileChangeType, EventType } from 'vs/platform/files/common/files';
 import { IEventService } from 'vs/platform/event/common/event';
 import { IMessageService, CloseAction } from 'vs/platform/message/common/message';
+import { IWindowsService } from 'vs/platform/windows/common/windows';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { TelemetryService } from 'vs/platform/telemetry/common/telemetryService';
 import { TelemetryAppenderClient } from 'vs/platform/telemetry/common/telemetryIpc';
@@ -52,9 +53,8 @@ import { ITextFileService } from 'vs/workbench/services/textfile/common/textfile
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
-import { IWindowService, IBroadcast } from 'vs/workbench/services/window/electron-browser/windowService';
+import { IWindowIPCService, IBroadcast } from 'vs/workbench/services/window/electron-browser/windowService';
 import { ILogEntry, EXTENSION_LOG_BROADCAST_CHANNEL, EXTENSION_ATTACH_BROADCAST_CHANNEL, EXTENSION_TERMINATE_BROADCAST_CHANNEL } from 'vs/workbench/electron-browser/extensionHost';
-import { ipcRenderer as ipc } from 'electron';
 
 const DEBUG_BREAKPOINTS_KEY = 'debug.breakpoint';
 const DEBUG_BREAKPOINTS_ACTIVATED_KEY = 'debug.breakpointactivated';
@@ -87,7 +87,8 @@ export class DebugService implements debug.IDebugService {
 		@IFileService private fileService: IFileService,
 		@IMessageService private messageService: IMessageService,
 		@IPartService private partService: IPartService,
-		@IWindowService private windowService: IWindowService,
+		@IWindowsService private windowsService: IWindowsService,
+		@IWindowIPCService private windowService: IWindowIPCService,
 		@ITelemetryService private telemetryService: ITelemetryService,
 		@IWorkspaceContextService private contextService: IWorkspaceContextService,
 		@IContextKeyService contextKeyService: IContextKeyService,
@@ -352,7 +353,7 @@ export class DebugService implements debug.IDebugService {
 		this.toDisposeOnSessionEnd[session.getId()].push(session.onDidExitAdapter(event => {
 			// 'Run without debugging' mode VSCode must terminate the extension host. More details: #3905
 			if (session && session.configuration.type === 'extensionHost' && this.sessionStates[session.getId()] === debug.State.RunningNoDebug) {
-				ipc.send('vscode:closeExtensionHostWindow', this.contextService.getWorkspace().resource.fsPath);
+				this.windowsService.closeExtensionHostWindow(this.contextService.getWorkspace().resource.fsPath);
 			}
 			if (session && session.getId() === event.body.sessionId) {
 				this.onSessionEnd(session);
