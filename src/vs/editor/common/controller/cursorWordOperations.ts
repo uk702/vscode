@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import { CursorMoveConfiguration, ICursorMoveHelperModel } from 'vs/editor/common/controller/cursorMoveHelper';
+import { CursorConfiguration, ICursorSimpleModel } from 'vs/editor/common/controller/cursorCommon';
 import { Position } from 'vs/editor/common/core/position';
 import { CharCode } from 'vs/base/common/charCode';
 import { CharacterClassifier } from 'vs/editor/common/core/characterClassifier';
@@ -84,7 +84,7 @@ export class WordOperations {
 		return { start: start, end: end, wordType: wordType };
 	}
 
-	public static findPreviousWordOnLine(config: CursorMoveConfiguration, model: ICursorMoveHelperModel, position: Position): IFindWordResult {
+	public static findPreviousWordOnLine(config: CursorConfiguration, model: ICursorSimpleModel, position: Position): IFindWordResult {
 		let wordSeparators = getMapForWordSeparators(config.wordSeparators);
 		let lineContent = model.getLineContent(position.lineNumber);
 		return this._findPreviousWordOnLine(lineContent, wordSeparators, position);
@@ -139,7 +139,7 @@ export class WordOperations {
 		return len;
 	}
 
-	public static findNextWordOnLine(config: CursorMoveConfiguration, model: ICursorMoveHelperModel, position: Position): IFindWordResult {
+	public static findNextWordOnLine(config: CursorConfiguration, model: ICursorSimpleModel, position: Position): IFindWordResult {
 		let wordSeparators = getMapForWordSeparators(config.wordSeparators);
 		let lineContent = model.getLineContent(position.lineNumber);
 		return this._findNextWordOnLine(lineContent, wordSeparators, position);
@@ -195,7 +195,7 @@ export class WordOperations {
 		return 0;
 	}
 
-	public static moveWordLeft(config: CursorMoveConfiguration, model: ICursorMoveHelperModel, cursor: CursorModelState, inSelectionMode: boolean, wordNavigationType: WordNavigationType): MoveOperationResult {
+	public static moveWordLeft(config: CursorConfiguration, model: ICursorSimpleModel, cursor: CursorModelState, inSelectionMode: boolean, wordNavigationType: WordNavigationType): MoveOperationResult {
 		let position = cursor.position;
 		let lineNumber = position.lineNumber;
 		let column = position.column;
@@ -229,7 +229,7 @@ export class WordOperations {
 		return new MoveOperationResult(inSelectionMode, lineNumber, column, 0, true, CursorChangeReason.Explicit);
 	}
 
-	public static moveWordRight(config: CursorMoveConfiguration, model: ICursorMoveHelperModel, cursor: CursorModelState, inSelectionMode: boolean, wordNavigationType: WordNavigationType): MoveOperationResult {
+	public static moveWordRight(config: CursorConfiguration, model: ICursorSimpleModel, cursor: CursorModelState, inSelectionMode: boolean, wordNavigationType: WordNavigationType): MoveOperationResult {
 		let position = cursor.position;
 		let lineNumber = position.lineNumber;
 		let column = position.column;
@@ -263,19 +263,19 @@ export class WordOperations {
 		return new MoveOperationResult(inSelectionMode, lineNumber, column, 0, true, CursorChangeReason.Explicit);
 	}
 
-	private static _deleteWordLeftWhitespace(config: CursorMoveConfiguration, model: ICursorMoveHelperModel, cursor: CursorModelState): EditOperationResult {
+	private static _deleteWordLeftWhitespace(config: CursorConfiguration, model: ICursorSimpleModel, cursor: CursorModelState): EditOperationResult {
 		let position = cursor.position;
 		let lineContent = model.getLineContent(position.lineNumber);
 		let startIndex = position.column - 2;
 		let lastNonWhitespace = strings.lastNonWhitespaceIndex(lineContent, startIndex);
 		if (lastNonWhitespace + 1 < startIndex) {
 			let deleteRange = new Range(position.lineNumber, lastNonWhitespace + 2, position.lineNumber, position.column);
-			return new EditOperationResult(new ReplaceCommand(deleteRange, ''), false, false, false);
+			return new EditOperationResult(new ReplaceCommand(deleteRange, ''));
 		}
 		return null;
 	}
 
-	public static deleteWordLeft(config: CursorMoveConfiguration, model: ICursorMoveHelperModel, cursor: CursorModelState, whitespaceHeuristics: boolean, wordNavigationType: WordNavigationType): EditOperationResult {
+	public static deleteWordLeft(config: CursorConfiguration, model: ICursorSimpleModel, cursor: CursorModelState, whitespaceHeuristics: boolean, wordNavigationType: WordNavigationType): EditOperationResult {
 		let r = DeleteOperations.autoClosingPairDelete(config, model, cursor);
 		if (r) {
 			// This was a case for an auto-closing pair delete
@@ -323,7 +323,7 @@ export class WordOperations {
 
 			let deleteSelection = new Range(lineNumber, column, lineNumber, position.column);
 			if (!deleteSelection.isEmpty()) {
-				return new EditOperationResult(new ReplaceCommand(deleteSelection, ''), false, false, false);
+				return new EditOperationResult(new ReplaceCommand(deleteSelection, ''));
 			}
 		}
 
@@ -341,7 +341,7 @@ export class WordOperations {
 		return len;
 	}
 
-	private static _deleteWordRightWhitespace(config: CursorMoveConfiguration, model: ICursorMoveHelperModel, cursor: CursorModelState): EditOperationResult {
+	private static _deleteWordRightWhitespace(config: CursorConfiguration, model: ICursorSimpleModel, cursor: CursorModelState): EditOperationResult {
 		let position = cursor.position;
 		let lineContent = model.getLineContent(position.lineNumber);
 		let startIndex = position.column - 1;
@@ -349,12 +349,12 @@ export class WordOperations {
 		if (startIndex + 1 < firstNonWhitespace) {
 			// bingo
 			let deleteRange = new Range(position.lineNumber, position.column, position.lineNumber, firstNonWhitespace + 1);
-			return new EditOperationResult(new ReplaceCommand(deleteRange, ''), false, false, false);
+			return new EditOperationResult(new ReplaceCommand(deleteRange, ''));
 		}
 		return null;
 	}
 
-	public static deleteWordRight(config: CursorMoveConfiguration, model: ICursorMoveHelperModel, cursor: CursorModelState, whitespaceHeuristics: boolean, wordNavigationType: WordNavigationType): EditOperationResult {
+	public static deleteWordRight(config: CursorConfiguration, model: ICursorSimpleModel, cursor: CursorModelState, whitespaceHeuristics: boolean, wordNavigationType: WordNavigationType): EditOperationResult {
 
 		let selection = cursor.selection;
 
@@ -419,7 +419,7 @@ export class WordOperations {
 
 			let deleteSelection = new Range(lineNumber, column, position.lineNumber, position.column);
 			if (!deleteSelection.isEmpty()) {
-				return new EditOperationResult(new ReplaceCommand(deleteSelection, ''), false, false, false);
+				return new EditOperationResult(new ReplaceCommand(deleteSelection, ''));
 			}
 		}
 
