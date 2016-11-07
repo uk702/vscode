@@ -19,7 +19,7 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 import { ActionRunner, FileViewletState } from 'vs/workbench/parts/files/browser/views/explorerViewer';
 import { ExplorerView } from 'vs/workbench/parts/files/browser/views/explorerView';
 import { EmptyView } from 'vs/workbench/parts/files/browser/views/emptyView';
-import { OpenEditorsView } from 'vs/workbench/parts/files/browser/views/openEditorsView';
+import { OpenEditorsView, MyEditorsView } from 'vs/workbench/parts/files/browser/views/openEditorsView';
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
@@ -39,6 +39,7 @@ export class ExplorerViewlet extends Viewlet {
 
 	private explorerView: ExplorerView;
 	private openEditorsView: OpenEditorsView;
+	private myEditorsView: MyEditorsView;
 	private emptyView: EmptyView;
 
 	private openEditorsVisible: boolean;
@@ -122,6 +123,8 @@ export class ExplorerViewlet extends Viewlet {
 				});
 			}
 
+			this.addMyEditorView();
+
 			// Explorer view
 			this.addExplorerView();
 			this.lastFocusedView = this.explorerView;
@@ -138,6 +141,13 @@ export class ExplorerViewlet extends Viewlet {
 		}
 
 		return TPromise.as(null);
+	}
+
+	private addMyEditorView():void {
+		this.myEditorsView = this.instantiationService.createInstance(MyEditorsView, this.getActionRunner(), this.viewletSettings);
+		this.splitView.addView(this.myEditorsView);
+
+		this.views.push(this.myEditorsView);
 	}
 
 	private addOpenEditorsView(): void {
@@ -208,6 +218,10 @@ export class ExplorerViewlet extends Viewlet {
 
 	public getOpenEditorsView(): OpenEditorsView {
 		return this.openEditorsView;
+	}
+
+	public getMyEditorsView(): MyEditorsView {
+		return this.myEditorsView;
 	}
 
 	public setVisible(visible: boolean): TPromise<void> {

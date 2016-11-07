@@ -26,6 +26,7 @@ import { Renderer, DataSource, Controller, AccessibilityProvider, ActionProvider
 import { IUntitledEditorService } from 'vs/workbench/services/untitled/common/untitledEditorService';
 import { CloseAllEditorsAction } from 'vs/workbench/browser/parts/editor/editorActions';
 import { ToggleEditorLayoutAction } from 'vs/workbench/browser/actions/toggleEditorLayout';
+import { IDataSource, ITree, IRenderer } from 'vs/base/parts/tree/browser/tree';
 
 const $ = dom.$;
 
@@ -275,3 +276,77 @@ export class OpenEditorsView extends AdaptiveCollapsibleViewletView {
 		super.shutdown();
 	}
 }
+
+export class MyDataSource implements IDataSource {
+
+	public getId(tree: ITree, element: any): string {
+		return "root";
+	}
+
+	public hasChildren(tree: ITree, element: any): boolean {
+		if (element == "root")
+			return true;
+		return false;
+	}
+
+	public getChildren(tree: ITree, element: any): TPromise<any> {
+		return TPromise.as(["111", "222", "333"]);
+	}
+
+	public getParent(tree: ITree, element: any): TPromise<any> {
+		return TPromise.as(null);
+	}
+}
+
+export class MyEditorsView extends AdaptiveCollapsibleViewletView {
+	private model: IEditorStacksModel;
+	// private structuralRefreshDelay: number;
+	// private structuralTreeRefreshScheduler: RunOnceScheduler;
+	private visibleOpenEditors: number;
+	private dynamicHeight: boolean;
+
+	constructor(actionRunner: IActionRunner,
+	 @IInstantiationService private instantiationService: IInstantiationService,
+	 @IEditorGroupService editorGroupService: IEditorGroupService,
+	 ) {
+		super(actionRunner, 30, true, "MyEditorsView", null, null)
+		this.model = editorGroupService.getStacksModel();
+		this.expandedBodySize=130;
+	}
+
+	public renderHeader(container: HTMLElement): void {
+		const titleDiv = dom.append(container, $('.title'));
+		const titleSpan = dom.append(titleDiv, $('span'));
+		titleSpan.textContent = nls.localize({ key: 'myEditorsView', comment: ['Open is an adjective'] }, "My Editors");
+
+		super.renderHeader(container);
+	}
+
+	public renderBody(container: HTMLElement): void {
+		this.treeContainer = super.renderViewTree(container);
+		dom.addClass(this.treeContainer, 'explorer-open-editors');
+		dom.addClass(this.treeContainer, 'show-file-icons');
+
+		const dataSource = this.instantiationService.createInstance(DataSource);
+		const actionProvider = this.instantiationService.createInstance(ActionProvider, this.model);
+		const renderer = this.instantiationService.createInstance(Renderer, actionProvider);
+
+		this.tree = new Tree(this.treeContainer, {
+			dataSource,
+			renderer,
+		}, {
+				indentPixels: 0,
+				twistiePixels: 20,
+			});
+	}
+
+	public create(): TPromise<void> {
+		// const treeInput = this.model.groups.length === 1 ? this.model.groups[0] : this.model;
+		// (treeInput !== this.tree.getInput() ? this.tree.setInput(treeInput) : this.tree.refresh(true))
+
+		this.tree.setInput(this.model)
+		return super.create();
+	}
+
+}
+
