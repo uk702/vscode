@@ -289,6 +289,8 @@ export class MyDataSource implements IDataSource {
 	public hasChildren(tree: ITree, element: any): boolean {
 		if ((element == "d:/") || (element == "d:/m2"))
 			return true;
+		else if (element == "333")
+			return true;
 		return false;
 	}
 
@@ -308,11 +310,6 @@ export class MyDataSource implements IDataSource {
 		else
 			return TPromise.as("d:/");
 	}
-}
-
-interface IEditorGroupTemplateData {
-	root: HTMLElement;
-	name: HTMLSpanElement;
 }
 
 export class MyRenderer implements IRenderer {
@@ -388,7 +385,7 @@ export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 			dataSource,
 			renderer,
 		}, {
-				indentPixels: 0,
+				indentPixels: 10,
 				twistiePixels: 20,
 			});
 	}
