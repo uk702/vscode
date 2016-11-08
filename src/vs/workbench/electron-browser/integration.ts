@@ -38,7 +38,7 @@ import { IResourceInput } from 'vs/platform/editor/common/editor';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IUntitledEditorService } from 'vs/workbench/services/untitled/common/untitledEditorService';
 import URI from 'vs/base/common/uri';
-import { ReloadWindowAction, ToggleDevToolsAction, ShowStartupPerformance } from 'vs/workbench/electron-browser/actions';
+import { ReloadWindowAction, ToggleDevToolsAction, ShowStartupPerformance, OpenRecentAction } from 'vs/workbench/electron-browser/actions';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { KeyMod, KeyCode } from 'vs/base/common/keyCodes';
 
@@ -140,13 +140,13 @@ export class ElectronIntegration {
 		// Fullscreen Events
 		ipc.on('vscode:enterFullScreen', (event) => {
 			this.partService.joinCreation().then(() => {
-				this.partService.addClass('fullscreen');
+				browser.setFullscreen(true);
 			});
 		});
 
 		ipc.on('vscode:leaveFullScreen', (event) => {
 			this.partService.joinCreation().then(() => {
-				this.partService.removeClass('fullscreen');
+				browser.setFullscreen(false);
 			});
 		});
 
@@ -170,6 +170,7 @@ export class ElectronIntegration {
 			if (webFrame.getZoomLevel() !== newZoomLevel) {
 				webFrame.setZoomLevel(newZoomLevel);
 				browser.setZoomLevel(webFrame.getZoomLevel()); // Ensure others can listen to zoom level changes
+				browser.setZoomFactor(webFrame.getZoomFactor());
 			}
 		});
 
@@ -206,6 +207,10 @@ export class ElectronIntegration {
 		if (this.environmentService.performance) {
 			workbenchActionsRegistry.registerWorkbenchAction(new SyncActionDescriptor(ShowStartupPerformance, ShowStartupPerformance.ID, ShowStartupPerformance.LABEL), 'Developer: Startup Performance', developerCategory);
 		}
+
+		// Action registered here to prevent a keybinding conflict with reload window
+		const fileCategory = nls.localize('file', "File");
+		workbenchActionsRegistry.registerWorkbenchAction(new SyncActionDescriptor(OpenRecentAction, OpenRecentAction.ID, OpenRecentAction.LABEL, { primary: isDeveloping ? null : KeyMod.CtrlCmd | KeyCode.KEY_R, mac: { primary: KeyMod.WinCtrl | KeyCode.KEY_R } }), 'File: Open Recent', fileCategory);
 	}
 
 	private resolveKeybindings(actionIds: string[]): TPromise<{ id: string; binding: number; }[]> {

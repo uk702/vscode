@@ -5,11 +5,12 @@
 
 'use strict';
 
-import 'vs/css!./messageList';
+import 'vs/css!./media/messageList';
 import nls = require('vs/nls');
 import { TPromise } from 'vs/base/common/winjs.base';
 import { Builder, $ } from 'vs/base/browser/builder';
 import DOM = require('vs/base/browser/dom');
+import * as browser from 'vs/base/browser/browser';
 import { toErrorMessage } from 'vs/base/common/errorMessage';
 import aria = require('vs/base/browser/ui/aria/aria');
 import types = require('vs/base/common/types');
@@ -76,6 +77,12 @@ export class MessageList {
 
 		this._onMessagesShowing = new Emitter<void>();
 		this._onMessagesCleared = new Emitter<void>();
+
+		this.registerListeners();
+	}
+
+	private registerListeners(): void {
+		browser.onDidChangeFullscreen(() => this.positionMessageList());
 	}
 
 	public get onMessagesShowing(): Event<void> {
@@ -196,10 +203,19 @@ export class MessageList {
 			if (animate) {
 				setTimeout(() => {
 					$(this.messageListContainer).addClass('transition');
-					$(this.messageListContainer).style('top', '0');
+					this.positionMessageList();
 				}, 50 /* Need this delay to reliably get the animation on some browsers */);
 			}
 		});
+	}
+
+	private positionMessageList(): void {
+		let position = 0;
+		if (!browser.isFullscreen() && DOM.hasClass(this.container, 'titlebar-style-custom')) {
+			position = 22 / browser.getZoomFactor(); // adjust the position based on title bar size and zoom factor
+		}
+
+		$(this.messageListContainer).style('top', `${position}px`);
 	}
 
 	private renderMessage(message: IMessageEntry, container: Builder, total: number, delta: number): void {
