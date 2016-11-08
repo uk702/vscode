@@ -280,17 +280,22 @@ export class OpenEditorsView extends AdaptiveCollapsibleViewletView {
 export class MyDataSource implements IDataSource {
 
 	public getId(tree: ITree, element: any): string {
-		return "root";
+		return element;
 	}
 
 	public hasChildren(tree: ITree, element: any): boolean {
 		if (element == "root")
 			return true;
+		else if (element == "333")
+			return true;
 		return false;
 	}
 
 	public getChildren(tree: ITree, element: any): TPromise<any> {
-		return TPromise.as(["111", "222", "333"]);
+		if (element == "root")
+			return TPromise.as(["111", "222", "333"]);
+		else if (element == "333")
+			return TPromise.as(["aaaa", "bbbb", "cccc", "dddd"]);
 	}
 
 	public getParent(tree: ITree, element: any): TPromise<any> {
@@ -298,19 +303,48 @@ export class MyDataSource implements IDataSource {
 	}
 }
 
+interface IEditorGroupTemplateData {
+	root: HTMLElement;
+	name: HTMLSpanElement;
+}
+
+export class MyRenderer implements IRenderer {
+	getHeight(tree: ITree, element: any): number {
+		return 22;
+	}
+
+	getTemplateId(tree: ITree, element: any): string {
+		return element;
+	}
+
+	renderTemplate(tree: ITree, templateId: string, container: HTMLElement): any {
+		console.log("Lilx: renderTemplate, templateId = " + templateId)
+		const myEditorGroupTemplate: IEditorGroupTemplateData = Object.create(null);
+
+		myEditorGroupTemplate.root = dom.append(container, $('.editor-group'));
+		myEditorGroupTemplate.name = dom.append(myEditorGroupTemplate.root, $('span'));
+		return myEditorGroupTemplate;
+	}
+
+	renderElement(tree: ITree, element: any, templateId: string, templateData: any): void {
+		console.log("Lilx: renderElement, element = " + element)
+		templateData.name.textContent = element;
+	}
+
+	disposeTemplate(tree: ITree, templateId: string, templateData: any): void {
+
+	}
+}
+
 export class MyEditorsView extends AdaptiveCollapsibleViewletView {
-	private model: IEditorStacksModel;
-	// private structuralRefreshDelay: number;
-	// private structuralTreeRefreshScheduler: RunOnceScheduler;
-	private visibleOpenEditors: number;
-	private dynamicHeight: boolean;
+	private model: string;
 
 	constructor(actionRunner: IActionRunner,
 	 @IInstantiationService private instantiationService: IInstantiationService,
 	 @IEditorGroupService editorGroupService: IEditorGroupService,
 	 ) {
 		super(actionRunner, 30, true, "MyEditorsView", null, null)
-		this.model = editorGroupService.getStacksModel();
+		this.model = "root";
 		this.expandedBodySize=130;
 	}
 
@@ -327,9 +361,8 @@ export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 		dom.addClass(this.treeContainer, 'explorer-open-editors');
 		dom.addClass(this.treeContainer, 'show-file-icons');
 
-		const dataSource = this.instantiationService.createInstance(DataSource);
-		const actionProvider = this.instantiationService.createInstance(ActionProvider, this.model);
-		const renderer = this.instantiationService.createInstance(Renderer, actionProvider);
+		const dataSource = this.instantiationService.createInstance(MyDataSource);
+		const renderer = this.instantiationService.createInstance(MyRenderer);
 
 		this.tree = new Tree(this.treeContainer, {
 			dataSource,
