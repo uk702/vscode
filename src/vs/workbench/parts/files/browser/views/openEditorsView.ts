@@ -28,6 +28,9 @@ import { CloseAllEditorsAction } from 'vs/workbench/browser/parts/editor/editorA
 import { ToggleEditorLayoutAction } from 'vs/workbench/browser/actions/toggleEditorLayout';
 import { IDataSource, ITree, IRenderer } from 'vs/base/parts/tree/browser/tree';
 
+import URI from 'vs/base/common/uri';
+import { FileLabel, IFileLabelOptions } from 'vs/workbench/browser/labels';
+
 const $ = dom.$;
 
 export class OpenEditorsView extends AdaptiveCollapsibleViewletView {
@@ -280,37 +283,88 @@ export class OpenEditorsView extends AdaptiveCollapsibleViewletView {
 export class MyDataSource implements IDataSource {
 
 	public getId(tree: ITree, element: any): string {
-		return "root";
+		return element;
 	}
 
 	public hasChildren(tree: ITree, element: any): boolean {
-		if (element == "root")
+		if ((element == "d:/") || (element == "d:/m2"))
 			return true;
 		return false;
 	}
 
 	public getChildren(tree: ITree, element: any): TPromise<any> {
-		return TPromise.as(["111", "222", "333"]);
+		if (element == "d:/")
+			return TPromise.as(["d:/gopath.7z", "d:/bootmgr", "d:/license-gpl3.txt", "d:/m2"]);
+		if (element == "d:/m2")
+			return TPromise.as(["d:/m2/说明.txt"]);
+		return TPromise.as(null);
 	}
 
 	public getParent(tree: ITree, element: any): TPromise<any> {
-		return TPromise.as(null);
+		if (element == "d:/")
+			return TPromise.as(null);
+		else if (element == "d:/m2/说明.txt")
+			return TPromise.as("d:/m2");
+		else
+			return TPromise.as("d:/");
+	}
+}
+
+interface IEditorGroupTemplateData {
+	root: HTMLElement;
+	name: HTMLSpanElement;
+}
+
+export class MyRenderer implements IRenderer {
+	constructor (@IInstantiationService private instantiationService: IInstantiationService) {
+
+	}
+
+	getHeight(tree: ITree, element: any): number {
+		return 22;
+	}
+
+	getTemplateId(tree: ITree, element: any): string {
+		return element;
+	}
+
+	renderTemplate(tree: ITree, templateId: string, container: HTMLElement): any {
+		console.log("Lilx: renderTemplate, templateId = " + templateId)
+		// const myEditorGroupTemplate: IEditorGroupTemplateData = Object.create(null);
+
+		// myEditorGroupTemplate.root = dom.append(container, $('.editor-group'));
+		// myEditorGroupTemplate.name = dom.append(myEditorGroupTemplate.root, $('span'));
+		// return myEditorGroupTemplate;
+
+		const label = this.instantiationService.createInstance(FileLabel, container, void 0);
+
+		const extraClasses = ['explorer-item'];
+		const isFolder = (templateId == "d:/") ? true : (templateId == "d:/m2") ? true : false;
+		console.log("Lilx: isFolder = " + isFolder)
+
+		label.setFile(URI.file(templateId), { hidePath: true, isFolder: isFolder, extraClasses });
+		return label;
+	}
+
+	renderElement(tree: ITree, element: any, templateId: string, templateData: any): void {
+		// console.log("Lilx: renderElement, element = " + element)
+		// templateData.name.textContent = element;
+	}
+
+	disposeTemplate(tree: ITree, templateId: string, templateData: any): void {
+		templateData.dispose();
 	}
 }
 
 export class MyEditorsView extends AdaptiveCollapsibleViewletView {
-	private model: IEditorStacksModel;
-	// private structuralRefreshDelay: number;
-	// private structuralTreeRefreshScheduler: RunOnceScheduler;
-	private visibleOpenEditors: number;
-	private dynamicHeight: boolean;
+	private model: string;
 
 	constructor(actionRunner: IActionRunner,
 	 @IInstantiationService private instantiationService: IInstantiationService,
 	 @IEditorGroupService editorGroupService: IEditorGroupService,
 	 ) {
 		super(actionRunner, 30, true, "MyEditorsView", null, null)
-		this.model = editorGroupService.getStacksModel();
+		this.model = "d:/";
 		this.expandedBodySize=130;
 	}
 
@@ -327,9 +381,8 @@ export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 		dom.addClass(this.treeContainer, 'explorer-open-editors');
 		dom.addClass(this.treeContainer, 'show-file-icons');
 
-		const dataSource = this.instantiationService.createInstance(DataSource);
-		const actionProvider = this.instantiationService.createInstance(ActionProvider, this.model);
-		const renderer = this.instantiationService.createInstance(Renderer, actionProvider);
+		const dataSource = this.instantiationService.createInstance(MyDataSource);
+		const renderer = this.instantiationService.createInstance(MyRenderer);
 
 		this.tree = new Tree(this.treeContainer, {
 			dataSource,
