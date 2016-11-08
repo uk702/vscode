@@ -289,6 +289,8 @@ export class MyDataSource implements IDataSource {
 	public hasChildren(tree: ITree, element: any): boolean {
 		if ((element == "d:/") || (element == "d:/m2"))
 			return true;
+		else if (element == "333")
+			return true;
 		return false;
 	}
 
@@ -353,6 +355,39 @@ export class MyRenderer implements IRenderer {
 
 	disposeTemplate(tree: ITree, templateId: string, templateData: any): void {
 		templateData.dispose();
+	}
+}
+
+interface IEditorGroupTemplateData {
+	root: HTMLElement;
+	name: HTMLSpanElement;
+}
+
+export class MyRenderer implements IRenderer {
+	getHeight(tree: ITree, element: any): number {
+		return 22;
+	}
+
+	getTemplateId(tree: ITree, element: any): string {
+		return element;
+	}
+
+	renderTemplate(tree: ITree, templateId: string, container: HTMLElement): any {
+		console.log("Lilx: renderTemplate, templateId = " + templateId)
+		const myEditorGroupTemplate: IEditorGroupTemplateData = Object.create(null);
+
+		myEditorGroupTemplate.root = dom.append(container, $('.editor-group'));
+		myEditorGroupTemplate.name = dom.append(myEditorGroupTemplate.root, $('span'));
+		return myEditorGroupTemplate;
+	}
+
+	renderElement(tree: ITree, element: any, templateId: string, templateData: any): void {
+		console.log("Lilx: renderElement, element = " + element)
+		templateData.name.textContent = element;
+	}
+
+	disposeTemplate(tree: ITree, templateId: string, templateData: any): void {
+
 	}
 }
 
