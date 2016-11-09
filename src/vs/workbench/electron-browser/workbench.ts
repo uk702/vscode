@@ -10,6 +10,7 @@ import 'vs/css!./media/workbench';
 import { TPromise, ValueCallback } from 'vs/base/common/winjs.base';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import strings = require('vs/base/common/strings');
+import Event, { Emitter } from 'vs/base/common/event';
 import DOM = require('vs/base/browser/dom');
 import { Builder, $ } from 'vs/base/browser/builder';
 import { Delayer } from 'vs/base/common/async';
@@ -120,6 +121,8 @@ export class Workbench implements IPartService {
 	private static sidebarPositionConfigurationKey = 'workbench.sideBar.location';
 	private static statusbarVisibleConfigurationKey = 'workbench.statusBar.visible';
 
+	private _onTitleBarVisibilityChange: Emitter<void>;
+
 	public _serviceBrand: any;
 
 	private parent: HTMLElement;
@@ -187,9 +190,15 @@ export class Workbench implements IPartService {
 		this.toShutdown = [];
 		this.editorBackgroundDelayer = new Delayer<void>(50);
 
+		this._onTitleBarVisibilityChange = new Emitter<void>();
+
 		this.creationPromise = new TPromise<boolean>(c => {
 			this.creationPromiseComplete = c;
 		});
+	}
+
+	public get onTitleBarVisibilityChange(): Event<void> {
+		return this._onTitleBarVisibilityChange.event;
 	}
 
 	/**
@@ -353,12 +362,6 @@ export class Workbench implements IPartService {
 		// Services we contribute
 		serviceCollection.set(IPartService, this);
 
-		// Title bar
-		this.titlebarPart = this.instantiationService.createInstance(TitlebarPart, Identifiers.TITLEBAR_PART);
-		this.toDispose.push(this.titlebarPart);
-		this.toShutdown.push(this.titlebarPart);
-		serviceCollection.set(ITitleService, this.titlebarPart);
-
 		// Status bar
 		this.statusbarPart = this.instantiationService.createInstance(StatusbarPart, Identifiers.STATUSBAR_PART);
 		this.toDispose.push(this.statusbarPart);
@@ -377,6 +380,12 @@ export class Workbench implements IPartService {
 
 		// Menus/Actions
 		serviceCollection.set(IMenuService, new SyncDescriptor(MenuService));
+
+		// Title bar
+		this.titlebarPart = this.instantiationService.createInstance(TitlebarPart, Identifiers.TITLEBAR_PART);
+		this.toDispose.push(this.titlebarPart);
+		this.toShutdown.push(this.titlebarPart);
+		serviceCollection.set(ITitleService, this.titlebarPart);
 
 		// Viewlet service (sidebar part)
 		this.sidebarPart = this.instantiationService.createInstance(SidebarPart, Identifiers.SIDEBAR_PART);
@@ -546,7 +555,16 @@ export class Workbench implements IPartService {
 		return !this.getCustomTitleBarStyle() || browser.isFullscreen();
 	}
 
-	private getCustomTitleBarStyle(): string {
+	public getTitleBarOffset(): number {
+		let offset = 0;
+		if (!this.isTitleBarHidden()) {
+			offset = 22 / browser.getZoomFactor(); // adjust the position based on title bar size and zoom factor
+		}
+
+		return offset;
+	}
+
+	private getCustomTitleBarStyle(): 'custom' {
 		if (!isMacintosh) {
 			return null; // custom title bar is only supported on Mac currently
 		}
@@ -746,20 +764,19 @@ export class Workbench implements IPartService {
 			return; // we need to be ready
 		}
 
+		// Apply as CSS class
 		const isFullscreen = browser.isFullscreen();
-		const hasCustomTitle = !!this.getCustomTitleBarStyle();
 		if (isFullscreen) {
 			this.addClass('fullscreen');
-
-			if (hasCustomTitle) {
-				this.layout({ forceStyleRecompute: true }); // handle title bar when fullscreen changes
-			}
 		} else {
 			this.removeClass('fullscreen');
+		}
 
-			if (hasCustomTitle) {
-				this.layout({ forceStyleRecompute: true }); // handle title bar when fullscreen changes
-			}
+		// Changing fullscreen state of the window has an impact on custom title bar visibility, so we need to update
+		const hasCustomTitle = this.getCustomTitleBarStyle() === 'custom';
+		if (hasCustomTitle) {
+			this._onTitleBarVisibilityChange.fire();
+			this.layout(); // handle title bar when fullscreen changes
 		}
 	}
 
