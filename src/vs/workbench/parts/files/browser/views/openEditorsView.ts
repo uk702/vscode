@@ -30,6 +30,7 @@ import { IDataSource, ITree, IRenderer } from 'vs/base/parts/tree/browser/tree';
 
 import URI from 'vs/base/common/uri';
 import { FileLabel, IFileLabelOptions } from 'vs/workbench/browser/labels';
+import treedefaults = require('vs/base/parts/tree/browser/treeDefaults');
 
 const $ = dom.$;
 
@@ -289,32 +290,22 @@ export class MyDataSource implements IDataSource {
 	public hasChildren(tree: ITree, element: any): boolean {
 		if ((element == "d:/") || (element == "d:/m2"))
 			return true;
-		else if (element == "333")
-			return true;
 		return false;
 	}
 
 	public getChildren(tree: ITree, element: any): TPromise<any> {
 		if (element == "d:/")
-			return TPromise.as(["d:/gopath.7z", "d:/bootmgr", "d:/license-gpl3.txt", "d:/m2"]);
-		if (element == "d:/m2")
-			return TPromise.as(["d:/m2/说明.txt"]);
+			return TPromise.as(["d:/gopath.7z", "d:/bootmgr", "d:/license-gpl3.txt"]);
 		return TPromise.as(null);
 	}
 
 	public getParent(tree: ITree, element: any): TPromise<any> {
-		if (element == "d:/")
-			return TPromise.as(null);
-		else if (element == "d:/m2/说明.txt")
-			return TPromise.as("d:/m2");
-		else
-			return TPromise.as("d:/");
+		return TPromise.as(null);
 	}
 }
 
 export class MyRenderer implements IRenderer {
 	constructor (@IInstantiationService private instantiationService: IInstantiationService) {
-
 	}
 
 	getHeight(tree: ITree, element: any): number {
@@ -327,19 +318,8 @@ export class MyRenderer implements IRenderer {
 
 	renderTemplate(tree: ITree, templateId: string, container: HTMLElement): any {
 		console.log("Lilx: renderTemplate, templateId = " + templateId)
-		// const myEditorGroupTemplate: IEditorGroupTemplateData = Object.create(null);
-
-		// myEditorGroupTemplate.root = dom.append(container, $('.editor-group'));
-		// myEditorGroupTemplate.name = dom.append(myEditorGroupTemplate.root, $('span'));
-		// return myEditorGroupTemplate;
-
 		const label = this.instantiationService.createInstance(FileLabel, container, void 0);
-
-		const extraClasses = ['explorer-item'];
-		const isFolder = (templateId == "d:/") ? true : (templateId == "d:/m2") ? true : false;
-		console.log("Lilx: isFolder = " + isFolder)
-
-		label.setFile(URI.file(templateId), { hidePath: true, isFolder: isFolder, extraClasses });
+		label.setFile(URI.file(templateId), { hidePath: true });
 		return label;
 	}
 
@@ -353,6 +333,64 @@ export class MyRenderer implements IRenderer {
 	}
 }
 
+import { IMouseEvent } from 'vs/base/browser/mouseEvent';
+import { IKeyboardEvent } from 'vs/base/browser/keyboardEvent';
+import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
+import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
+
+class MyController extends treedefaults.DefaultController {
+	constructor(
+		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
+		@IEditorGroupService private editorGroupService: IEditorGroupService,
+		@IContextMenuService private contextMenuService: IContextMenuService,
+		@ITelemetryService private telemetryService: ITelemetryService,
+		@IKeybindingService private keybindingService: IKeybindingService
+	) {
+		super({ clickBehavior: treedefaults.ClickBehavior.ON_MOUSE_DOWN });
+	}
+
+	protected onLeftClick(tree: ITree, element: any, event: IMouseEvent, origin: string = 'mouse'): boolean {
+		// Lilx
+		console.log("Lilx: click on " + element);
+
+		const payload = { origin: origin };
+		const isDoubleClick = (origin === 'mouse' && event.detail === 2);
+
+		// Cancel Event
+		const isMouseDown = event && event.browserEvent && event.browserEvent.type === 'mousedown';
+		if (!isMouseDown) {
+			event.preventDefault(); // we cannot preventDefault onMouseDown because this would break DND otherwise
+		}
+		event.stopPropagation();
+
+		// Set DOM focus
+		tree.DOMFocus();
+
+		// Allow to unselect
+		if (event.shiftKey) {
+			const selection = tree.getSelection();
+			if (selection && selection.length > 0 && selection[0] === element) {
+				tree.clearSelection(payload);
+			}
+		}
+
+		// Select, Focus and open files
+		else {
+			tree.setFocus(element, payload);
+
+			if (isDoubleClick) {
+				event.preventDefault(); // focus moves to editor, we need to prevent default
+			}
+
+			tree.setSelection([element], payload);
+			this.editorService.openEditor({ resource: URI.file(element)}).done(null, errors.onUnexpectedError);
+			//this.openEditor(element, isDoubleClick);
+		}
+
+		return true;
+	}
+}
+
 export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 	private model: string;
 
@@ -362,7 +400,7 @@ export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 	 ) {
 		super(actionRunner, 30, true, "MyEditorsView", null, null)
 		this.model = "d:/";
-		this.expandedBodySize=130;
+		this.expandedBodySize=100;
 	}
 
 	public renderHeader(container: HTMLElement): void {
@@ -380,10 +418,12 @@ export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 
 		const dataSource = this.instantiationService.createInstance(MyDataSource);
 		const renderer = this.instantiationService.createInstance(MyRenderer);
+		const controller = this.instantiationService.createInstance(MyController);
 
 		this.tree = new Tree(this.treeContainer, {
 			dataSource,
 			renderer,
+			controller
 		}, {
 				indentPixels: 10,
 				twistiePixels: 20,
@@ -397,6 +437,4 @@ export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 		this.tree.setInput(this.model)
 		return super.create();
 	}
-
 }
-

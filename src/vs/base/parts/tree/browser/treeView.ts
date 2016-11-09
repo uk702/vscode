@@ -219,6 +219,9 @@ export class ViewItem implements IViewItem {
 			return;
 		}
 
+		// Lilx
+		// console.log("Lilx: render, element = " + this.element + ", has-children = " + this.model.hasChildren())
+
 		var classes = ['monaco-tree-row'];
 		classes.push.apply(classes, Object.keys(this._styles));
 
