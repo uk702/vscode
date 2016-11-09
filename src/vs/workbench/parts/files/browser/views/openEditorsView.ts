@@ -288,14 +288,14 @@ export class MyDataSource implements IDataSource {
 	}
 
 	public hasChildren(tree: ITree, element: any): boolean {
-		if ((element == "d:/") || (element == "d:/m2"))
+		if (element == "root")
 			return true;
 		return false;
 	}
 
 	public getChildren(tree: ITree, element: any): TPromise<any> {
-		if (element == "d:/")
-			return TPromise.as(["d:/gopath.7z", "d:/bootmgr", "d:/license-gpl3.txt"]);
+		if (element == "root")
+			return TPromise.as(["D:/workspace/doc/go语言知识总集.md", "D:/workspace/doc/vsc总集.md", "d:/license-gpl3.txt", "d:/m2/说明.txt"]);
 		return TPromise.as(null);
 	}
 
@@ -319,7 +319,7 @@ export class MyRenderer implements IRenderer {
 	renderTemplate(tree: ITree, templateId: string, container: HTMLElement): any {
 		console.log("Lilx: renderTemplate, templateId = " + templateId)
 		const label = this.instantiationService.createInstance(FileLabel, container, void 0);
-		label.setFile(URI.file(templateId), { hidePath: true });
+		label.setFile(URI.file(templateId) /*, { hidePath: true } */);
 		return label;
 	}
 
@@ -399,7 +399,7 @@ export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 	 @IEditorGroupService editorGroupService: IEditorGroupService,
 	 ) {
 		super(actionRunner, 30, true, "MyEditorsView", null, null)
-		this.model = "d:/";
+		this.model = "root";
 		this.expandedBodySize=100;
 	}
 
