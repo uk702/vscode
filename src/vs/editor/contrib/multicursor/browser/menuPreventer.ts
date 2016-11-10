@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import { KeyMod } from 'vs/base/common/keyCodes';
+import { KeyMod, KeyCode } from 'vs/base/common/keyCodes';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { IEditorContribution } from 'vs/editor/common/editorCommon';
 import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
@@ -68,8 +68,65 @@ export class MenuPreventer extends Disposable implements IEditorContribution {
 				this._altListeningMouse = true;
 			}
 
-			if (e.equals(KeyMod.CtrlCmd))
+			if (e.equals(KeyMod.CtrlCmd)) {
 				this._ctrlMouseTriggered = true;
+			}
+
+			// Lilx，不好判断，如包含中文的路径，分隔符可能有“，”
+			if (this._ctrlMouseTriggered && e.keyCode == KeyCode.US_DOT) {
+				let model = editor.getModel();
+				let editorSelection = editor.getSelection();
+
+				var lineNumber = editorSelection.startLineNumber;
+				var lineNumber = editorSelection.startLineNumber;
+				var startColumn = editorSelection.startColumn;
+
+				let content = model.getLineContent(lineNumber);
+				// console.log("Lilx: content = " + content)
+				// console.log("Lilx: startColumn = " + startColumn + ", ch = " + content.charCodeAt(startColumn))
+
+				let i = startColumn;
+				let len = content.length;
+
+				while (i < len) {
+					let chCode = content.charAt(i);
+					if (chCode === ' ') {
+						break;
+					} else if (chCode === '\t') {
+						break;
+					} else if (chCode === ',') {
+						break;
+					} else if (chCode == "，".charAt(0)) {
+						break;
+					}
+
+					i++;
+				}
+
+				var endPos = i;
+
+				i = startColumn;
+				while (i >= 0) {
+					let chCode = content.charAt(i);
+					if (chCode === ' ') {
+						break;
+					} else if (chCode === '\t') {
+						break;
+					} else if (chCode == "，".charAt(0)) {
+						break;
+					}
+					i--;
+				}
+
+				var fs=require("fs");
+				let filename = content.substr(i + 1, endPos - i - 1);
+				if (fs.existsSync(filename)) {
+					// 可能弹出个路径编辑框进行编辑确认会更好一些
+					this.editorService.openEditor({ resource: URI.file(filename), options: { pinned: true } });
+				}
+
+				// console.log("Lilx: result = '" + content.substr(i + 1, endPos - i - 1) + "'")
+			}
 		}));
 
 		this._register(this._editor.onKeyUp((e) => {
