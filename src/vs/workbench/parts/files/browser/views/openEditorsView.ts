@@ -281,6 +281,15 @@ export class OpenEditorsView extends AdaptiveCollapsibleViewletView {
 	}
 }
 
+var myFastopen = [];
+var fs=require("fs");
+fs.readFile("d:/myfastopen.txt", 'utf-8', function(err, data){
+	if(!err){
+		data = data.trim();
+		myFastopen = data.split(/\r?\n/);
+	}
+});
+
 export class MyDataSource implements IDataSource {
 
 	public getId(tree: ITree, element: any): string {
@@ -294,8 +303,10 @@ export class MyDataSource implements IDataSource {
 	}
 
 	public getChildren(tree: ITree, element: any): TPromise<any> {
-		if (element == "root")
-			return TPromise.as(["D:/workspace/doc/go语言知识总集.md", "D:/workspace/doc/vsc总集.md", "d:/license-gpl3.txt", "d:/m2/说明.txt"]);
+		if (element == "root") {
+			return TPromise.as(myFastopen);
+		}
+
 		return TPromise.as(null);
 	}
 
@@ -383,8 +394,9 @@ class MyController extends treedefaults.DefaultController {
 			}
 
 			tree.setSelection([element], payload);
-			this.editorService.openEditor({ resource: URI.file(element)}).done(null, errors.onUnexpectedError);
-			//this.openEditor(element, isDoubleClick);
+			if (fs.existsSync(element)) {
+				this.editorService.openEditor({ resource: URI.file(element)}).done(null, errors.onUnexpectedError);
+			}
 		}
 
 		return true;
