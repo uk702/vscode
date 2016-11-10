@@ -284,6 +284,7 @@ export interface IDebugConfiguration {
 
 export interface IGlobalConfig {
 	version: string;
+	debugServer?: number;
 	configurations: IConfig[];
 }
 
@@ -295,8 +296,6 @@ export interface IEnvConfig {
 	preLaunchTask?: string;
 	debugServer?: number;
 	noDebug?: boolean;
-	silentlyAbort?: boolean;
-	configurationNames?: string[];
 }
 
 export interface IConfig extends IEnvConfig {
@@ -373,7 +372,7 @@ export interface IDebugService {
 	/**
 	 * Sets the focused stack frame and evaluates all expresions against the newly focused stack frame,
 	 */
-	setFocusedStackFrameAndEvaluate(focusedStackFrame: IStackFrame, process?: IProcess): TPromise<void>;
+	focusStackFrameAndEvaluate(focusedStackFrame: IStackFrame, process?: IProcess): TPromise<void>;
 
 	/**
 	 * Adds new breakpoints to the model for the file specified with the uri. Notifies debug adapter of breakpoint changes.
