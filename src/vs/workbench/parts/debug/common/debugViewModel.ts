@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import Event, { Emitter } from 'vs/base/common/event';
-import debug = require('vs/workbench/parts/debug/common/debug');
+import * as debug from 'vs/workbench/parts/debug/common/debug';
 
 export class ViewModel implements debug.IViewModel {
 
@@ -46,7 +46,7 @@ export class ViewModel implements debug.IViewModel {
 			return this._focusedStackFrame;
 		}
 
-		const callStack = this.focusedThread ? this.focusedThread.getCachedCallStack() : null;
+		const callStack = this.focusedThread ? this.focusedThread.getCallStack() : null;
 		return callStack && callStack.length ? callStack[0] : null;
 	}
 

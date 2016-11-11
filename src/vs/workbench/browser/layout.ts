@@ -10,14 +10,13 @@ import { QuickOpenController } from 'vs/workbench/browser/parts/quickopen/quickO
 import { Sash, ISashEvent, IVerticalSashLayoutProvider, IHorizontalSashLayoutProvider, Orientation } from 'vs/base/browser/ui/sash/sash';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IPartService, Position, ILayoutOptions, Parts } from 'vs/workbench/services/part/common/partService';
-import { IViewletService } from 'vs/workbench/services/viewlet/common/viewletService';
+import { IViewletService } from 'vs/workbench/services/viewlet/browser/viewlet';
 import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
 import { IContextViewService } from 'vs/platform/contextview/browser/contextView';
 import { IEventService } from 'vs/platform/event/common/event';
 import { IThemeService } from 'vs/workbench/services/themes/common/themeService';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { IEditorGroupService } from 'vs/workbench/services/group/common/groupService';
-import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { getZoomFactor } from 'vs/base/browser/browser';
 
 const DEFAULT_MIN_SIDEBAR_PART_WIDTH = 170;
@@ -91,7 +90,6 @@ export class WorkbenchLayout implements IVerticalSashLayoutProvider, IHorizontal
 		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
 		@IEditorGroupService private editorGroupService: IEditorGroupService,
 		@IPartService private partService: IPartService,
-		@IConfigurationService configurationService: IConfigurationService,
 		@IViewletService private viewletService: IViewletService,
 		@IThemeService themeService: IThemeService
 	) {
