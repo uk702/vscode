@@ -102,6 +102,7 @@ class ShowAllSymbolsAction extends QuickOpenAction {
 	}
 }
 
+// 注册到最左侧的切换条上
 // Register Viewlet
 (<ViewletRegistry>Registry.as(ViewletExtensions.Viewlets)).registerViewlet(new ViewletDescriptor(
 	'vs/workbench/parts/search/browser/searchViewlet',
@@ -114,7 +115,6 @@ class ShowAllSymbolsAction extends QuickOpenAction {
 
 // Actions
 const registry = <IWorkbenchActionRegistry>Registry.as(ActionExtensions.WorkbenchActions);
-
 
 registry.registerWorkbenchAction(new SyncActionDescriptor(searchActions.OpenSearchViewletAction, Constants.VIEWLET_ID, nls.localize('showSearchViewlet', "Show Search"), { primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KEY_F },
 	Constants.SearchViewletVisibleKey.toNegated()), 'View: Show Search', nls.localize('view', "View"));

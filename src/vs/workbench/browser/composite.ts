@@ -230,6 +230,9 @@ export abstract class CompositeRegistry<T extends Composite> {
 	}
 
 	protected registerComposite(descriptor: CompositeDescriptor<T>): void {
+		// Lilx
+		console.log("Lilx: registerComposite, id = " + descriptor.id);
+
 		if (this.compositeById(descriptor.id) !== null) {
 			return;
 		}
