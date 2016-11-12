@@ -144,16 +144,16 @@ export abstract class KeybindingService implements IKeybindingService {
 
 	protected _dispatch(e: IKeyboardEvent): void {
 		// Lilx
-		var myDate = new Date();
-		console.log("Lilx: " +
-		myDate.getFullYear() + "/" +
-		(myDate.getMonth() > 9 ? myDate.getMonth() : "0" + myDate.getMonth()) + "/" +
-		(myDate.getDay() > 9 ? myDate.getDay() : "0" + myDate.getDay()) + " " +
-		(myDate.getHours() > 9 ? myDate.getHours() : "0" + myDate.getHours()) + ":" +
-		(myDate.getMinutes() > 9 ? myDate.getMinutes() : "0" + myDate.getMinutes()) + ":" +
-		(myDate.getSeconds() > 9 ? myDate.getSeconds() : "0" + myDate.getSeconds()) + "." +
-		(myDate.getMilliseconds() > 99 ? myDate.getMilliseconds() : myDate.getMilliseconds() > 9 ? "0" + myDate.getMilliseconds() : "00" + myDate.getMilliseconds()) +
-		", keycode = " + e.keyCode)
+		// var myDate = new Date();
+		// console.log("Lilx: " +
+		// myDate.getFullYear() + "/" +
+		// (myDate.getMonth() > 9 ? myDate.getMonth() : "0" + myDate.getMonth()) + "/" +
+		// (myDate.getDay() > 9 ? myDate.getDay() : "0" + myDate.getDay()) + " " +
+		// (myDate.getHours() > 9 ? myDate.getHours() : "0" + myDate.getHours()) + ":" +
+		// (myDate.getMinutes() > 9 ? myDate.getMinutes() : "0" + myDate.getMinutes()) + ":" +
+		// (myDate.getSeconds() > 9 ? myDate.getSeconds() : "0" + myDate.getSeconds()) + "." +
+		// (myDate.getMilliseconds() > 99 ? myDate.getMilliseconds() : myDate.getMilliseconds() > 9 ? "0" + myDate.getMilliseconds() : "00" + myDate.getMilliseconds()) +
+		// ", keycode = " + e.keyCode)
 
 		let isModifierKey = (e.keyCode === KeyCode.Ctrl || e.keyCode === KeyCode.Shift || e.keyCode === KeyCode.Alt || e.keyCode === KeyCode.Meta);
 		if (isModifierKey) {

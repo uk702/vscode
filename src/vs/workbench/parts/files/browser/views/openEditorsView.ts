@@ -412,7 +412,9 @@ export class MyEditorsView extends AdaptiveCollapsibleViewletView {
 	 ) {
 		super(actionRunner, 30, true, "MyEditorsView", null, null)
 		this.model = "root";
-		this.expandedBodySize=100;
+
+		let num = myFastopen.length >= 5 ? 5 : myFastopen.length;
+		this.expandedBodySize = num * 22;
 	}
 
 	public renderHeader(container: HTMLElement): void {

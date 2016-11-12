@@ -158,6 +158,15 @@ export abstract class CompositePart<T extends Composite> extends Part {
 	}
 
 	protected createComposite(id: string, isActive?: boolean): TPromise<Composite> {
+		// Lilx
+		try {
+			console.error("Lilx: createComposite, id = " + id);
+
+			// let err = new Error("print stack:");
+			// console.error(err.stack);
+		}
+		catch (Error) {
+		}
 
 		// Check if composite is already created
 		for (let i = 0; i < this.instantiatedComposits.length; i++) {
@@ -494,6 +503,7 @@ export abstract class CompositePart<T extends Composite> extends Part {
 	}
 
 	public shutdown(): void {
+		// this.instantiatedComposits.forEach(i => console.log("Lilx: Composit " + i.getId() + " shutdown."));
 		this.instantiatedComposits.forEach(i => i.shutdown());
 
 		super.shutdown();
@@ -505,6 +515,7 @@ export abstract class CompositePart<T extends Composite> extends Part {
 		this.mapActionsBindingToComposite = null;
 
 		for (let i = 0; i < this.instantiatedComposits.length; i++) {
+			// console.log("Lilx: dispose Composit = " + this.instantiatedComposits[i].getId());
 			this.instantiatedComposits[i].dispose();
 		}
 
