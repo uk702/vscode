@@ -328,9 +328,9 @@ export class MyRenderer implements IRenderer {
 	}
 
 	renderTemplate(tree: ITree, templateId: string, container: HTMLElement): any {
-		console.log("Lilx: renderTemplate, templateId = " + templateId)
+		// console.log("Lilx: renderTemplate, templateId = " + templateId)
 		const label = this.instantiationService.createInstance(FileLabel, container, void 0);
-		label.setFile(URI.file(templateId) /*, { hidePath: true } */);
+		label.setFile(URI.file(templateId));
 		return label;
 	}
 

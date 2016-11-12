@@ -44,16 +44,6 @@ export class MenuPreventer extends Disposable implements IEditorContribution {
 			let model = editor.getModel();
 			let lineno = editor.getSelection().getStartPosition().lineNumber;
 			let content = model.getLineContent(lineno);
-			if (this._ctrlMouseTriggered) {
-				if (content.substr(0,4) == "|=> ") {
-					let filename = content.substr(4);
-
-					var fs=require("fs");
-					if (fs.existsSync(filename)) {
-						this.editorService.openEditor({ resource: URI.file(filename), options: { pinned: true } });
-					}
-				}
-			}
 
 			if (this._altListeningMouse) {
 				this._altMouseTriggered = true;
@@ -82,9 +72,6 @@ export class MenuPreventer extends Disposable implements IEditorContribution {
 				var startColumn = editorSelection.startColumn;
 
 				let content = model.getLineContent(lineNumber);
-				// console.log("Lilx: content = " + content)
-				// console.log("Lilx: startColumn = " + startColumn + ", ch = " + content.charCodeAt(startColumn))
-
 				let i = startColumn;
 				let len = content.length;
 
@@ -121,11 +108,20 @@ export class MenuPreventer extends Disposable implements IEditorContribution {
 				var fs=require("fs");
 				let filename = content.substr(i + 1, endPos - i - 1);
 				if (fs.existsSync(filename)) {
-					// 可能弹出个路径编辑框进行编辑确认会更好一些
-					this.editorService.openEditor({ resource: URI.file(filename), options: { pinned: true } });
+					let fnlen = filename.length
+					if (fnlen > 5 && filename.substr(fnlen - 5) == ".docx") {
+						open(filename)
+					}
+					else if (fnlen > 4 && ((filename.substr(fnlen - 4) == ".ppt")
+					|| (filename.substr(fnlen - 4) == ".doc"))
+						)
+					{
+						open(filename)
+					} else {
+						// 可能弹出个路径编辑框进行编辑确认会更好一些
+						this.editorService.openEditor({ resource: URI.file(filename), options: { pinned: true } });
+					}
 				}
-
-				// console.log("Lilx: result = '" + content.substr(i + 1, endPos - i - 1) + "'")
 			}
 		}));
 
