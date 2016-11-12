@@ -102,6 +102,7 @@ class ShowAllSymbolsAction extends QuickOpenAction {
 	}
 }
 
+// 注册到最左侧的切换条上
 // Register Viewlet
 (<ViewletRegistry>Registry.as(ViewletExtensions.Viewlets)).registerViewlet(new ViewletDescriptor(
 	'vs/workbench/parts/search/browser/searchViewlet',
