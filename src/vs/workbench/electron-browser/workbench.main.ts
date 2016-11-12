@@ -102,3 +102,7 @@ import 'vs/workbench/electron-browser/main';
 import 'vs/workbench/parts/themes/test/electron-browser/themes.test.contribution';
 
 import 'vs/workbench/parts/watermark/browser/watermark';
+
+import 'vs/workbench/parts/mybooks/browser/mybooks.contribution';
+// import 'vs/workbench/parts/search/browser/searchViewlet';
+// import 'vs/workbench/parts/search/browser/openAnythingHandler';
