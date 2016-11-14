@@ -112,10 +112,14 @@ export class MenuPreventer extends Disposable implements IEditorContribution {
 					if (fnlen > 5 && filename.substr(fnlen - 5) == ".docx") {
 						open(filename)
 					}
-					else if (fnlen > 4 && ((filename.substr(fnlen - 4) == ".ppt")
-					|| (filename.substr(fnlen - 4) == ".doc"))
+					else if
+					(fnlen > 4 &&
+						(
+					  		   (filename.substr(fnlen - 4) == ".ppt")
+							|| (filename.substr(fnlen - 4) == ".doc")
+							|| (filename.substr(fnlen - 4) == ".pdf")
 						)
-					{
+					) {
 						open(filename)
 					} else {
 						// 可能弹出个路径编辑框进行编辑确认会更好一些

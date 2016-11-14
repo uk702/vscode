@@ -24,7 +24,6 @@ import { FindInput } from 'vs/base/browser/ui/findinput/findInput';
 import { ITree } from 'vs/base/parts/tree/browser/tree';
 import { Tree } from 'vs/base/parts/tree/browser/treeImpl';
 import { Scope } from 'vs/workbench/common/memento';
-import { OpenGlobalSettingsAction } from 'vs/workbench/browser/actions/openSettings';
 import { IEditorGroupService } from 'vs/workbench/services/group/common/groupService';
 import { getOutOfWorkspaceEditorResources } from 'vs/workbench/common/editor';
 import { FileChangeType, FileChangesEvent, EventType as FileEventType } from 'vs/platform/files/common/files';
