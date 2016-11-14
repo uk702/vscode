@@ -6,26 +6,37 @@
 'use strict';
 
 import { TPromise } from 'vs/base/common/winjs.base';
+import { IDisposable, dispose } from 'vs/base/common/lifecycle';
+import { assign } from 'vs/base/common/objects';
 import { IWindowsService } from 'vs/platform/windows/common/windows';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { shell, crashReporter, app } from 'electron';
-import Event from 'vs/base/common/event';
+import Event, { chain } from 'vs/base/common/event';
 import { fromEventEmitter } from 'vs/base/node/event';
+import { IURLService } from 'vs/platform/url/common/url';
 
 // TODO@Joao: remove this dependency, move all implementation to this class
 import { IWindowsMainService } from 'vs/code/electron-main/windows';
 
-export class WindowsService implements IWindowsService {
+export class WindowsService implements IWindowsService, IDisposable {
 
 	_serviceBrand: any;
+
+	private disposables: IDisposable[] = [];
 
 	onWindowOpen: Event<number> = fromEventEmitter(app, 'browser-window-created', (_, w: Electron.BrowserWindow) => w.id);
 	onWindowFocus: Event<number> = fromEventEmitter(app, 'browser-window-focus', (_, w: Electron.BrowserWindow) => w.id);
 
 	constructor(
 		@IWindowsMainService private windowsMainService: IWindowsMainService,
-		@IEnvironmentService private environmentService: IEnvironmentService
-	) { }
+		@IEnvironmentService private environmentService: IEnvironmentService,
+		@IURLService private urlService: IURLService
+	) {
+		chain(urlService.onOpenURL)
+			.filter(uri => uri.authority === 'file' && !!uri.path)
+			.map(uri => uri.path)
+			.on(this.openFileForURI, this, this.disposables);
+	}
 
 	openFileFolderPicker(windowId: number, forceNewWindow?: boolean): TPromise<void> {
 		this.windowsMainService.openFileFolderPicker(forceNewWindow);
@@ -243,5 +254,17 @@ export class WindowsService implements IWindowsService {
 	startCrashReporter(config: Electron.CrashReporterStartOptions): TPromise<void> {
 		crashReporter.start(config);
 		return TPromise.as(null);
+	}
+
+	private openFileForURI(filePath: string): TPromise<void> {
+		const cli = assign(Object.create(null), this.environmentService.args, { goto: true });
+		const pathsToOpen = [filePath];
+
+		this.windowsMainService.open({ cli, pathsToOpen });
+		return TPromise.as(null);
+	}
+
+	dispose(): void {
+		this.disposables = dispose(this.disposables);
 	}
 }
