@@ -130,11 +130,6 @@ export class BackupService implements IBackupService {
 	}
 
 	public backupBeforeShutdown(dirtyToBackup: Uri[], textFileEditorModelManager: ITextFileEditorModelManager, quitRequested: boolean, confirmCallback: () => boolean | TPromise<boolean>): boolean | TPromise<boolean> {
-		// If there are no dirty files, clean up and exit
-		if (dirtyToBackup.length === 0) {
-			return this.cleanupBackupsBeforeShutdown();
-		}
-
 		return this.backupFileService.getWorkspaceBackupPaths().then(workspaceBackupPaths => {
 			// When quit is requested skip the confirm callback and attempt to backup all workspaces.
 			// When quit is not requested the confirm callback should be shown when the window being
@@ -160,9 +155,7 @@ export class BackupService implements IBackupService {
 		if (!workspace) {
 			return false; // no backups to cleanup, no veto
 		}
-		return this.backupFileService.discardAllWorkspaceBackups().then(() => {
-			return false; // no veto
-		});
+		return this.backupFileService.discardAllWorkspaceBackups().then(() => false, () => false); // no veto
 	}
 
 	public dispose(): void {

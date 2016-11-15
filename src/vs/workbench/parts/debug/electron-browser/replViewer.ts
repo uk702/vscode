@@ -27,6 +27,7 @@ import { CopyAction } from 'vs/workbench/parts/debug/electron-browser/electronDe
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
+import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 
 const $ = dom.$;
 
@@ -94,11 +95,10 @@ export class ReplExpressionsRenderer implements IRenderer {
 	private static FILE_LOCATION_PATTERNS: RegExp[] = [
 		// group 0: the full thing :)
 		// group 1: absolute path
-		// group 2: drive letter on windows with trailing backslash or leading slash on mac/linux
-		// group 3: line number
-		// group 4: column number
+		// group 2: line number
+		// group 3: column number
 		// eg: at Context.<anonymous> (c:\Users\someone\Desktop\mocha-runner\test\test.js:26:11)
-		/(?:file:\/\/)?((\/|[a-zA-Z]:\\)?[^\(\)<>\'\"\[\]:]+):(\d+)(?::(\d+))?/
+		/(?:at |^|[\(<\'\"\[])(?:file:\/\/)?((?:(?:\/|[a-zA-Z]:)|[^\(\)<>\'\"\[\]:\s]+)(?:[\\/][^\(\)<>\'\"\[\]:]*)?):(\d+)(?::(\d+))?(?:$|[\)>\'\"\]])/
 	];
 
 	private static LINE_HEIGHT_PX = 18;
@@ -107,7 +107,8 @@ export class ReplExpressionsRenderer implements IRenderer {
 	private characterWidth: number;
 
 	constructor(
-		@IWorkbenchEditorService private editorService: IWorkbenchEditorService
+		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
+		@IWorkspaceContextService private contextService: IWorkspaceContextService
 	) {
 		// noop
 	}
@@ -217,7 +218,10 @@ export class ReplExpressionsRenderer implements IRenderer {
 
 	private renderInputOutputPair(tree: ITree, expression: debug.IExpression, templateData: IInputOutputPairTemplateData): void {
 		templateData.input.textContent = expression.name;
-		renderExpressionValue(expression, templateData.value, false);
+		renderExpressionValue(expression, templateData.value, {
+			showChanged: false,
+			preserveWhitespace: true
+		});
 		if (expression.hasChildren) {
 			templateData.annotation.className = 'annotation octicon octicon-info';
 			templateData.annotation.title = nls.localize('stateCapture', "Object state is captured from first evaluation");
@@ -343,9 +347,9 @@ export class ReplExpressionsRenderer implements IRenderer {
 			pattern.lastIndex = 0; // the holy grail of software development
 
 			const match = pattern.exec(text);
-			let resource = null;
+			let resource: uri = null;
 			try {
-				resource = match && uri.file(match[1]);
+				resource = match && this.contextService.toResource(match[1]);
 			} catch (e) { }
 
 			if (resource) {
@@ -362,7 +366,7 @@ export class ReplExpressionsRenderer implements IRenderer {
 				link.textContent = text.substr(match.index, match[0].length);
 				link.title = isMacintosh ? nls.localize('fileLinkMac', "Click to follow (Cmd + click opens to the side)") : nls.localize('fileLink', "Click to follow (Ctrl + click opens to the side)");
 				linkContainer.appendChild(link);
-				link.onclick = (e) => this.onLinkClick(new StandardMouseEvent(e), resource, Number(match[3]), match[4] && Number(match[4]));
+				link.onclick = (e) => this.onLinkClick(new StandardMouseEvent(e), resource, Number(match[2]), match[3] && Number(match[3]));
 
 				let textAfterLink = text.substr(match.index + match[0].length);
 				if (textAfterLink) {
@@ -407,7 +411,10 @@ export class ReplExpressionsRenderer implements IRenderer {
 		}
 
 		// value
-		renderExpressionValue(output.value, templateData.value, false);
+		renderExpressionValue(output.value, templateData.value, {
+			showChanged: false,
+			preserveWhitespace: true
+		});
 
 		// annotation if any
 		if (output.annotation) {
