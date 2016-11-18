@@ -15,6 +15,7 @@ import { IFileService, IFilesConfiguration } from 'vs/platform/files/common/file
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IUntitledEditorService } from 'vs/workbench/services/untitled/common/untitledEditorService';
 import { TPromise } from 'vs/base/common/winjs.base';
+import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 
 export class BackupService implements IBackupService {
 
@@ -25,8 +26,6 @@ export class BackupService implements IBackupService {
 
 	private toDispose: IDisposable[];
 
-	private backupPromises: TPromise<void>[];
-
 	private configuredHotExit: boolean;
 
 	constructor(
@@ -34,10 +33,10 @@ export class BackupService implements IBackupService {
 		@IConfigurationService private configurationService: IConfigurationService,
 		@IFileService private fileService: IFileService,
 		@IUntitledEditorService private untitledEditorService: IUntitledEditorService,
-		@IWorkspaceContextService private contextService: IWorkspaceContextService
+		@IWorkspaceContextService private contextService: IWorkspaceContextService,
+		@IEnvironmentService private environmentService: IEnvironmentService
 	) {
 		this.toDispose = [];
-		this.backupPromises = [];
 
 		this.registerListeners();
 	}
@@ -49,38 +48,6 @@ export class BackupService implements IBackupService {
 	private onConfigurationChange(configuration: IFilesConfiguration): void {
 		// Hot exit is disabled for empty workspaces
 		this.configuredHotExit = this.contextService.getWorkspace() && configuration && configuration.files && configuration.files.hotExit;
-	}
-
-	private backupImmediately(resource: Uri, content: string): TPromise<void> {
-		if (!resource) {
-			return TPromise.as(void 0);
-		}
-
-		return this.doBackup(resource, content, true);
-	}
-
-	public doBackup(resource: Uri, content: string, immediate?: boolean): TPromise<void> {
-		// Cancel any currently running backups to make this the one that succeeds
-		this.cancelBackupPromises();
-
-		if (immediate) {
-			return this.backupFileService.backupResource(resource, content);
-		}
-
-		// Create new backup promise and keep it
-		const promise = TPromise.timeout(1000).then(() => {
-			this.backupFileService.backupResource(resource, content); // Very important here to not return the promise because if the timeout promise is canceled it will bubble up the error otherwise - do not change
-		});
-
-		this.backupPromises.push(promise);
-
-		return promise;
-	}
-
-	private cancelBackupPromises(): void {
-		while (this.backupPromises.length) {
-			this.backupPromises.pop().cancel();
-		}
 	}
 
 	/**
@@ -104,7 +71,7 @@ export class BackupService implements IBackupService {
 	private doBackupAll(dirtyFileModels: ITextFileEditorModel[], untitledResources: Uri[]): TPromise<void> {
 		// Handle file resources first
 		return TPromise.join(dirtyFileModels.map(model => {
-			return this.backupImmediately(model.getResource(), model.getValue()).then(() => void 0);
+			return this.backupFileService.backupResource(model.getResource(), model.getValue());
 		})).then(results => {
 			// Handle untitled resources
 			const untitledModelPromises = untitledResources.map(untitledResource => this.untitledEditorService.get(untitledResource))
@@ -113,7 +80,7 @@ export class BackupService implements IBackupService {
 
 			return TPromise.join(untitledModelPromises).then(untitledModels => {
 				const untitledBackupPromises = untitledModels.map(model => {
-					return this.backupImmediately(model.getResource(), model.getValue());
+					return this.backupFileService.backupResource(model.getResource(), model.getValue());
 				});
 				return TPromise.join(untitledBackupPromises).then(() => void 0);
 			});
@@ -123,10 +90,14 @@ export class BackupService implements IBackupService {
 	public get isHotExitEnabled(): boolean {
 		// If hot exit is enabled then save the dirty files in the workspace and then exit
 		// Hot exit is currently disabled for empty workspaces (#13733).
-		return this.configuredHotExit && !!this.contextService.getWorkspace();
+		return !this.environmentService.isExtensionDevelopment && this.configuredHotExit && !!this.contextService.getWorkspace();
 	}
 
 	public backupBeforeShutdown(dirtyToBackup: Uri[], textFileEditorModelManager: ITextFileEditorModelManager, quitRequested: boolean): TPromise<IBackupResult> {
+		if (!this.isHotExitEnabled) {
+			return TPromise.as({ didBackup: false });
+		}
+
 		return this.backupFileService.getWorkspaceBackupPaths().then(workspaceBackupPaths => {
 			// When quit is requested skip the confirm callback and attempt to backup all workspaces.
 			// When quit is not requested the confirm callback should be shown when the window being
@@ -142,9 +113,13 @@ export class BackupService implements IBackupService {
 	}
 
 	public cleanupBackupsBeforeShutdown(): TPromise<void> {
+		if (this.environmentService.isExtensionDevelopment) {
+			return TPromise.as(void 0);
+		}
+
 		const workspace = this.contextService.getWorkspace();
 		if (!workspace) {
-			return TPromise.as(null); // no backups to cleanup
+			return TPromise.as(void 0); // no backups to cleanup
 		}
 
 		return this.backupFileService.discardAllWorkspaceBackups();
@@ -152,7 +127,5 @@ export class BackupService implements IBackupService {
 
 	public dispose(): void {
 		this.toDispose = dispose(this.toDispose);
-
-		this.cancelBackupPromises();
 	}
 }

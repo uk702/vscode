@@ -73,14 +73,14 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 });
 
 KeybindingsRegistry.registerCommandAndKeybindingRule({
-	id: '_workbench.exitZenMode',
+	id: 'workbench.action.exitZenMode',
 	weight: 0,
 	handler(accessor: ServicesAccessor, configurationOrName: any) {
 		const partService = accessor.get(IPartService);
 		partService.toggleZenMode();
 	},
 	when: InZenModeContext,
-	primary: KeyCode.Escape
+	primary: KeyChord(KeyCode.Escape, KeyCode.Escape)
 });
 
 // Configuration: Workbench
