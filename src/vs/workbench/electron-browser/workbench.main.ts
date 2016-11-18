@@ -25,7 +25,7 @@ import 'vs/workbench/browser/actions/toggleStatusbarVisibility';
 import 'vs/workbench/browser/actions/toggleSidebarVisibility';
 import 'vs/workbench/browser/actions/toggleSidebarPosition';
 import 'vs/workbench/browser/actions/toggleEditorLayout';
-import 'vs/workbench/browser/actions/toggleZenMode';
+import 'vs/workbench/browser/actions/toggleFocusMode';
 import 'vs/workbench/parts/settings/browser/openSettings.contribution';
 import 'vs/workbench/browser/actions/configureLocale';
 
@@ -104,8 +104,7 @@ import 'vs/workbench/electron-browser/main';
 
 import 'vs/workbench/parts/themes/test/electron-browser/themes.test.contribution';
 
-import 'vs/workbench/parts/watermark/browser/watermark';
-
+import 'vs/workbench/parts/watermark/electron-browser/watermark';
 import 'vs/workbench/parts/mybooks/browser/mybooks.contribution';
 // import 'vs/workbench/parts/search/browser/searchViewlet';
 // import 'vs/workbench/parts/search/browser/openAnythingHandler';
