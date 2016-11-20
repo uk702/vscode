@@ -866,6 +866,14 @@ export class OneCursorOp {
 	public static line(cursor: OneCursor, inSelectionMode: boolean, _position: editorCommon.IPosition, _viewPosition: editorCommon.IPosition, ctx: IOneCursorOperationContext): boolean {
 		// TODO@Alex -> select in editable range
 
+		// try {
+		// 	console.error("Lilx: --- line ---");
+		// 	let err = new Error("print stack:");
+		// 	console.error(err.stack);
+		// }
+		// catch (Error) {
+		// }
+
 		let position = cursor.validatePosition(_position);
 		let viewPosition = (
 			_viewPosition ?

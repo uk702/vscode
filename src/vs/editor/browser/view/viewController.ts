@@ -206,7 +206,27 @@ export class ViewController implements IViewController {
 	}
 
 	private lineSelect(source: string, viewPosition: Position): void {
+		// Lilx
+		// try {
+		//	console.error("Lilx: lineSelect.");
+		// 	let err = new Error("print stack:");
+		// 	console.error(err.stack);
+		// }
+		// catch (Error) {
+		// }
+
 		viewPosition = this._validateViewColumn(viewPosition);
+
+		// Lilx
+		// console.log("Lilx: triggerCursorHandler = " + this.triggerCursorHandler);
+		// "Lilx: triggerCursorHandler = function (source, handlerId, payload) {
+		//                 if (!_this.cursor) {
+		//                     return;
+		//                 }
+		//                 _this.cursor.trigger(source, handlerId, payload);
+		//             }", source: file:///D:/workspace/vscode/out/vs/editor/browser/view/viewController.js (194)
+
+		// 触发 editorCommon.Handler.LineSelect 这个 action
 		this.triggerCursorHandler(source, editorCommon.Handler.LineSelect, {
 			position: this.convertViewToModelPosition(viewPosition),
 			viewPosition: viewPosition

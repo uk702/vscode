@@ -220,6 +220,17 @@ export class MouseTargetFactory {
 	}
 
 	public createMouseTarget(layoutInfo: EditorLayoutInfo, lastViewCursorsRenderData: IViewCursorRenderData[], e: EditorMouseEvent, testEventTarget: boolean): IMouseTarget {
+
+		// Lilx，当且仅当鼠标在在 Editor 窗口内移动时调用
+		// try {
+		// 	console.error("Lilx: createMouseTarget.");
+
+		// 	let err = new Error("print stack:");
+		// 	console.error(err.stack);
+		// }
+		// catch (Error) {
+		// }
+
 		try {
 			let r = this._unsafeCreateMouseTarget(layoutInfo, lastViewCursorsRenderData, e, testEventTarget);
 			return r;
