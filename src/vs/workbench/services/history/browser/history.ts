@@ -710,6 +710,7 @@ export class HistoryService extends BaseHistoryService implements IHistoryServic
 
 	private loadHistory(): void {
 		let entries: (ISerializedFileEditorInput | URI) []  = [];
+		let hash = {};
 
 		const entriesRaw = this.storageService.get(HistoryService.STORAGE_KEY, StorageScope.WORKSPACE);
 		if (entriesRaw) {
@@ -721,12 +722,19 @@ export class HistoryService extends BaseHistoryService implements IHistoryServic
 
 		this.history = entries.map(entry => {
 			if (entry instanceof URI) {
-				console.log("Lilx: " + entry);
-				return {resource : entry } as IResourceInput;
+				if (!hash[entry.toString()])
+				{
+					hash[entry.path] = true;
+					return {resource : entry } as IResourceInput;
+				}
 			} else {
 				const serializedFileInput = entry as ISerializedFileEditorInput;
 				if (serializedFileInput.resource) {
-					return { resource: URI.parse(serializedFileInput.resource) } as IResourceInput;
+					if (!hash[serializedFileInput.resource])
+					{
+						hash[serializedFileInput.resource] = true;
+						return { resource: URI.parse(serializedFileInput.resource) } as IResourceInput;
+					}
 				}
 			}
 
