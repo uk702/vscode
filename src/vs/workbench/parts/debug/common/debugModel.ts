@@ -12,6 +12,7 @@ import { generateUuid } from 'vs/base/common/uuid';
 import { clone } from 'vs/base/common/objects';
 import severity from 'vs/base/common/severity';
 import { isObject, isString } from 'vs/base/common/types';
+import * as strings from 'vs/base/common/strings';
 import { distinct } from 'vs/base/common/arrays';
 import { IRange } from 'vs/editor/common/editorCommon';
 import { Range } from 'vs/editor/common/core/range';
@@ -23,10 +24,10 @@ import { Source } from 'vs/workbench/parts/debug/common/debugSource';
 const MAX_REPL_LENGTH = 10000;
 const UNKNOWN_SOURCE_LABEL = nls.localize('unknownSource', "Unknown Source");
 
-export class OutputElement implements debug.ITreeElement {
+export abstract class AbstractOutputElement implements debug.ITreeElement {
 	private static ID_COUNTER = 0;
 
-	constructor(private id = OutputElement.ID_COUNTER++) {
+	constructor(private id = AbstractOutputElement.ID_COUNTER++) {
 		// noop
 	}
 
@@ -35,23 +36,24 @@ export class OutputElement implements debug.ITreeElement {
 	}
 }
 
-export class ValueOutputElement extends OutputElement {
+export class OutputElement extends AbstractOutputElement {
+
+	public counter: number;
 
 	constructor(
 		public value: string,
 		public severity: severity,
-		public category?: string,
-		public counter = 1
 	) {
 		super();
+		this.counter = 1;
 	}
 }
 
-export class KeyValueOutputElement extends OutputElement {
+export class OutputNameValueElement extends AbstractOutputElement {
 
 	private static MAX_CHILDREN = 1000; // upper bound of children per value
 
-	constructor(public key: string, public valueObj: any, public annotation?: string) {
+	constructor(public name: string, public valueObj: any, public annotation?: string) {
 		super();
 	}
 
@@ -71,11 +73,11 @@ export class KeyValueOutputElement extends OutputElement {
 
 	public getChildren(): debug.ITreeElement[] {
 		if (Array.isArray(this.valueObj)) {
-			return (<any[]>this.valueObj).slice(0, KeyValueOutputElement.MAX_CHILDREN)
-				.map((v, index) => new KeyValueOutputElement(String(index), v));
+			return (<any[]>this.valueObj).slice(0, OutputNameValueElement.MAX_CHILDREN)
+				.map((v, index) => new OutputNameValueElement(String(index), v));
 		} else if (isObject(this.valueObj)) {
-			return Object.getOwnPropertyNames(this.valueObj).slice(0, KeyValueOutputElement.MAX_CHILDREN)
-				.map(key => new KeyValueOutputElement(key, this.valueObj[key]));
+			return Object.getOwnPropertyNames(this.valueObj).slice(0, OutputNameValueElement.MAX_CHILDREN)
+				.map(key => new OutputNameValueElement(key, this.valueObj[key]));
 		}
 
 		return [];
@@ -95,14 +97,13 @@ export abstract class ExpressionContainer implements debug.IExpressionContainer 
 		public stackFrame: debug.IStackFrame,
 		public reference: number,
 		private id: string,
-		public namedVariables: number,
-		public indexedVariables: number,
+		public namedVariables = 0,
+		public indexedVariables = 0,
 		private startOfVariables = 0
 	) { }
 
 	public getChildren(): TPromise<debug.IExpression[]> {
-		// only variables with reference > 0 have children.
-		if (this.reference <= 0) {
+		if (!this.hasChildren) {
 			return TPromise.as([]);
 		}
 
@@ -144,6 +145,7 @@ export abstract class ExpressionContainer implements debug.IExpressionContainer 
 	}
 
 	public get hasChildren(): boolean {
+		// only variables with reference > 0 have children.
 		return this.reference > 0;
 	}
 
@@ -173,6 +175,12 @@ export abstract class ExpressionContainer implements debug.IExpressionContainer 
 	}
 }
 
+export class OutputExpressionContainer extends ExpressionContainer {
+	constructor(public name: string, stackFrame: debug.IStackFrame, reference: number, public annotation = null) {
+		super(stackFrame, reference, generateUuid());
+	}
+}
+
 export class Expression extends ExpressionContainer implements debug.IExpression {
 	static DEFAULT_VALUE = nls.localize('notAvailable', "not available");
 
@@ -180,7 +188,7 @@ export class Expression extends ExpressionContainer implements debug.IExpression
 	public type: string;
 
 	constructor(public name: string, id = generateUuid()) {
-		super(null, 0, id, 0, 0);
+		super(null, 0, id);
 		this.available = false;
 		// name is not set if the expression is just being added
 		// in that case do not set default value to prevent flashing #14499
@@ -288,7 +296,6 @@ export class Variable extends ExpressionContainer implements debug.IExpression {
 				this.namedVariables = response.body.namedVariables;
 				this.indexedVariables = response.body.indexedVariables;
 			}
-			// TODO@Isidor notify stackFrame that a change has happened so watch expressions get revelauted
 		}, err => {
 			this.errorMessage = err.message;
 		});
@@ -808,63 +815,31 @@ export class Model implements debug.IModel {
 
 	public addReplExpression(process: debug.IProcess, stackFrame: debug.IStackFrame, name: string): TPromise<void> {
 		const expression = new Expression(name);
-		this.addReplElements([expression]);
+		this.addReplElement(expression);
 		return expression.evaluate(process, stackFrame, 'repl')
 			.then(() => this._onDidChangeREPLElements.fire());
 	}
 
-	public logToRepl(value: string | { [key: string]: any }, severity?: severity): void {
-		let elements: OutputElement[] = [];
-		let previousOutput = this.replElements.length && (<ValueOutputElement>this.replElements[this.replElements.length - 1]);
-
-		// string message
-		if (typeof value === 'string') {
-			if (value && value.trim() && previousOutput && previousOutput.value === value && previousOutput.severity === severity) {
-				previousOutput.counter++; // we got the same output (but not an empty string when trimmed) so we just increment the counter
-			} else {
-				let lines = value.trim().split('\n');
-				lines.forEach((line, index) => {
-					elements.push(new ValueOutputElement(line, severity));
-				});
-			}
-		}
-
-		// key-value output
-		else {
-			elements.push(new KeyValueOutputElement((<any>value).prototype, value, nls.localize('snapshotObj', "Only primitive values are shown for this object.")));
-		}
-
-		if (elements.length) {
-			this.addReplElements(elements);
-		}
-		this._onDidChangeREPLElements.fire();
-	}
-
-	public appendReplOutput(value: string, severity?: severity): void {
-		const elements: OutputElement[] = [];
-		const previousOutput = this.replElements.length && (<ValueOutputElement>this.replElements[this.replElements.length - 1]);
-		const lines = value.split('\n');
-		const groupTogether = !!previousOutput && (previousOutput.category === 'output' && severity === previousOutput.severity);
-
+	public appendReplOutput(output: OutputElement | OutputExpressionContainer | OutputNameValueElement): void {
+		const previousOutput = this.replElements.length && (this.replElements[this.replElements.length - 1] as OutputElement);
+		const groupTogether = output instanceof OutputElement && previousOutput instanceof OutputElement && output.severity === previousOutput.severity;
 		if (groupTogether) {
-			// append to previous line if same group
-			previousOutput.value += lines.shift();
-		} else if (previousOutput && previousOutput.value === '') {
-			// remove potential empty lines between different output types
-			this.replElements.pop();
+			if (strings.endsWith(previousOutput.value, '\n') && previousOutput.value === output.value && output.value.trim()) {
+				// we got the same output (but not an empty string when trimmed) so we just increment the counter
+				previousOutput.counter++;
+			} else {
+				// append to previous line if same group
+				previousOutput.value += output.value;
+			}
+		} else {
+			this.addReplElement(output);
 		}
 
-		// fill in lines as output value elements
-		lines.forEach((line, index) => {
-			elements.push(new ValueOutputElement(line, severity, 'output'));
-		});
-
-		this.addReplElements(elements);
 		this._onDidChangeREPLElements.fire();
 	}
 
-	private addReplElements(newElements: debug.ITreeElement[]): void {
-		this.replElements.push(...newElements);
+	private addReplElement(newElement: debug.ITreeElement): void {
+		this.replElements.push(newElement);
 		if (this.replElements.length > MAX_REPL_LENGTH) {
 			this.replElements.splice(0, this.replElements.length - MAX_REPL_LENGTH);
 		}

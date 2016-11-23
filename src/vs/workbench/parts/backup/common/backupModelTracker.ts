@@ -56,7 +56,7 @@ export class BackupModelTracker implements IWorkbenchContribution {
 		} else if (event.kind === StateChange.CONTENT_CHANGE) {
 			if (this.backupService.isHotExitEnabled) {
 				const model = this.textFileService.models.get(event.resource);
-				this.backupFileService.backupResource(model.getResource(), model.getValue());
+				this.backupFileService.backupResource(model.getResource(), model.getValue(), model.getVersionId());
 			}
 		}
 	}
@@ -65,9 +65,9 @@ export class BackupModelTracker implements IWorkbenchContribution {
 		if (this.backupService.isHotExitEnabled) {
 			const input = this.untitledEditorService.get(resource);
 			if (input.isDirty()) {
-				this.backupFileService.backupResource(resource, input.getValue());
+				input.resolve().then(model => this.backupFileService.backupResource(resource, model.getValue(), model.getVersionId()));
 			} else {
-				this.backupFileService.discardResourceBackup(resource);
+				this.discardBackup(resource);
 			}
 		}
 	}
