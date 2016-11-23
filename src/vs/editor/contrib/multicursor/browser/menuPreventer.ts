@@ -109,7 +109,12 @@ export class MenuPreventer extends Disposable implements IEditorContribution {
 				let filename = content.substr(i + 1, endPos - i - 1);
 				if (fs.existsSync(filename)) {
 					let fnlen = filename.length
-					if (fnlen > 5 && filename.substr(fnlen - 5) == ".docx") {
+					if (fnlen > 5 &&
+						(
+							(filename.substr(fnlen - 5) == ".docx")
+							|| (filename.substr(fnlen - 5) == ".pptx")
+						)
+					) {
 						open(filename)
 					}
 					else if

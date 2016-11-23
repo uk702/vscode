@@ -281,7 +281,7 @@ export class OpenEditorsView extends AdaptiveCollapsibleViewletView {
 	}
 }
 
-var myFastopen = [];
+export var myFastopen = [];
 var fs=require("fs");
 fs.readFile("d:/myfastopen.txt", 'utf-8', function(err, data){
 	if(!err){
@@ -289,6 +289,30 @@ fs.readFile("d:/myfastopen.txt", 'utf-8', function(err, data){
 		myFastopen = data.split(/\r?\n/);
 	}
 });
+
+export function isMyFileType(filename : string) : boolean {
+	let fnlen = filename.length;
+	if (fnlen > 5 &&
+		(
+			(filename.substr(fnlen - 5) == ".docx")
+			|| (filename.substr(fnlen - 5) == ".pptx")
+		)
+	) {
+		return true;
+	}
+	else if
+	(fnlen > 4 &&
+		(
+				(filename.substr(fnlen - 4) == ".ppt")
+			|| (filename.substr(fnlen - 4) == ".doc")
+			|| (filename.substr(fnlen - 4) == ".pdf")
+		)
+	) {
+		return true;
+	}
+
+	return false;
+}
 
 export class MyDataSource implements IDataSource {
 
@@ -395,7 +419,11 @@ class MyController extends treedefaults.DefaultController {
 
 			tree.setSelection([element], payload);
 			if (fs.existsSync(element)) {
-				this.editorService.openEditor({ resource: URI.file(element)}).done(null, errors.onUnexpectedError);
+				if (isMyFileType(element)) {
+					open(element)
+				} else {
+					this.editorService.openEditor({ resource: URI.file(element)}).done(null, errors.onUnexpectedError);
+				}
 			}
 		}
 

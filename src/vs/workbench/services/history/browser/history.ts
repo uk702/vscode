@@ -34,6 +34,9 @@ import { IIntegrityService } from 'vs/platform/integrity/common/integrity';
 import { ITitleService } from 'vs/workbench/services/title/common/titleService';
 import { IWindowService } from 'vs/platform/windows/common/windows';
 
+//Lilx
+import { myFastopen, isMyFileType } from 'vs/workbench/parts/files/browser/views/OpenEditorsView'
+
 /**
  * Stores the selection & view state of an editor and allows to compare it to other selection states.
  */
@@ -706,17 +709,25 @@ export class HistoryService extends BaseHistoryService implements IHistoryServic
 	}
 
 	private loadHistory(): void {
-		let entries: ISerializedFileEditorInput[] = [];
+		let entries: (ISerializedFileEditorInput | URI) []  = [];
 
 		const entriesRaw = this.storageService.get(HistoryService.STORAGE_KEY, StorageScope.WORKSPACE);
 		if (entriesRaw) {
 			entries = JSON.parse(entriesRaw);
 		}
 
+		// Lilx
+		myFastopen.forEach(myfile => entries.push(URI.file(myfile)));
+
 		this.history = entries.map(entry => {
-			const serializedFileInput = entry as ISerializedFileEditorInput;
-			if (serializedFileInput.resource) {
-				return { resource: URI.parse(serializedFileInput.resource) } as IResourceInput;
+			if (entry instanceof URI) {
+				console.log("Lilx: " + entry);
+				return {resource : entry } as IResourceInput;
+			} else {
+				const serializedFileInput = entry as ISerializedFileEditorInput;
+				if (serializedFileInput.resource) {
+					return { resource: URI.parse(serializedFileInput.resource) } as IResourceInput;
+				}
 			}
 
 			return void 0;

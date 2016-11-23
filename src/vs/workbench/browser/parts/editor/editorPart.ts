@@ -39,6 +39,10 @@ import { BaseTextEditor } from 'vs/workbench/browser/parts/editor/textEditor';
 import { EditorStacksModel, EditorGroup, EditorIdentifier, GroupEvent } from 'vs/workbench/common/editor/editorStacksModel';
 import Event, { Emitter } from 'vs/base/common/event';
 
+//Lilx
+import { isMyFileType } from 'vs/workbench/parts/files/browser/views/OpenEditorsView'
+import { FileEditorInput } from 'vs/workbench/parts/files/common/editors/fileEditorInput';
+
 class ProgressMonitor {
 
 	constructor(private _token: number, private progressPromise: TPromise<void>) { }
@@ -206,6 +210,14 @@ export class EditorPart extends Part implements IEditorPart, IEditorGroupService
 	public openEditor(input: EditorInput, options?: EditorOptions, sideBySide?: boolean): TPromise<BaseEditor>;
 	public openEditor(input: EditorInput, options?: EditorOptions, position?: Position, ratio?: number[]): TPromise<BaseEditor>;
 	public openEditor(input: EditorInput, options?: EditorOptions, arg3?: any, ratio?: number[]): TPromise<BaseEditor> {
+		if(input instanceof FileEditorInput) {
+			const myfilename = (<FileEditorInput> input).getResource().path;
+			if (isMyFileType(myfilename)) {
+				console.log("Lilx: filename = " + myfilename.substr(1, myfilename.length - 1));
+				open(myfilename.substr(1, myfilename.length - 1));
+				return TPromise.as(null);
+			}
+		}
 
 		// Normalize some values
 		if (!options) { options = null; }
@@ -399,6 +411,12 @@ export class EditorPart extends Part implements IEditorPart, IEditorGroupService
 	}
 
 	private doSetInput(group: EditorGroup, editor: BaseEditor, input: EditorInput, options: EditorOptions, monitor: ProgressMonitor): TPromise<BaseEditor> {
+	// console.log("Lilx: input = " + input.getName())
+	// if (isMyFileType(input.getName())) {
+	// 	open(input.getName());
+	// 	return TPromise.as(null);
+	// }
+
 
 		// Emit Input-Changed Event as appropiate
 		const previousInput = editor.getInput();

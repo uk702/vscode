@@ -149,8 +149,8 @@ export class ViewLine implements IVisibleLineData {
 	public getLineInnerHTML(lineNumber: number): string {
 		// Lilx，参考输出
 		// "Lilx: lineNumber = 17, content = <span><span class="token ">&nbsp;&nbsp;&nbsp;&nbsp;fmt</span><span class="token go punctuation other period">.</span><span class="token go function support">Println</span><span class="token go punctuation other bracket round">(</span><span class="token go punctuation string quoted double definition begin">"</span><span class="token go string quoted double">Ok</span><span class="token go punctuation string quoted double definition end">"</span><span class="token go punctuation other bracket round">)</span></span>",
-		// console.log("Lilx: lineNumber = " + lineNumber + ", content = " + this._renderedViewLine.html);
 
+		// console.log("Lilx: lineNumber = " + lineNumber + ", content = " + this._renderedViewLine.html);
 		return this._renderedViewLine.html;
 	}
 
