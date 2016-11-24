@@ -313,10 +313,20 @@ export class ExtensionEditor extends BaseEditor {
 	}
 
 	private openMarkdown(content: TPromise<string>, noContentCopy: string) {
-		return this.loadContents(() => content
-			.then(marked.parse)
-			.then(renderBody)
-			.then<void>(body => {
+
+var http=require("http");
+var options={
+  hostname:"127.0.0.1",
+    port:9000,
+    path:"/",
+    method:"GET"
+};
+var req=http.request(options, (res) => {
+    // console.log("状态码:"+res.statusCode);
+    // console.log("响应头:"+JSON.stringify(res.headers));
+    res.setEncoding("utf8");
+	res.on("data", (chunk) => {
+
 				const webview = new WebView(
 					this.content,
 					document.querySelector('.monaco-editor-background'),
@@ -324,16 +334,36 @@ export class ExtensionEditor extends BaseEditor {
 				);
 
 				webview.style(this.themeService.getColorTheme());
-				webview.contents = [body];
-
-				webview.onDidClickLink(link => this.openerService.open(link), null, this.contentDisposables);
-				this.themeService.onDidColorThemeChange(themeId => webview.style(themeId), null, this.contentDisposables);
+				// webview.contents = ["<a href='https://github.com/'>github</a>"];
+				console.log("响应内容:"+chunk);
+				webview.contents = [chunk];
 				this.contentDisposables.push(webview);
-			})
-			.then(null, () => {
-				const p = append(this.content, $('p.nocontent'));
-				p.textContent = noContentCopy;
-			}));
+    });
+});
+req.end();
+
+		// return this.loadContents(() => content
+		// 	.then(marked.parse)
+		// 	.then(renderBody)
+		// 	.then<void>(body => {
+		// 		const webview = new WebView(
+		// 			this.content,
+		// 			document.querySelector('.monaco-editor-background'),
+		// 			{ nodeintegration: false }
+		// 		);
+
+		// 		webview.style(this.themeService.getColorTheme());
+		// 		//webview.contents = [body];
+		// 		//webview.contents = ["<a href='https://github.com/'>github</a>"];
+
+		// 		webview.onDidClickLink(link => this.openerService.open(link), null, this.contentDisposables);
+		// 		this.themeService.onDidColorThemeChange(themeId => webview.style(themeId), null, this.contentDisposables);
+		// 		this.contentDisposables.push(webview);
+		// 	})
+		// 	.then(null, () => {
+		// 		const p = append(this.content, $('p.nocontent'));
+		// 		p.textContent = noContentCopy;
+		// 	}));
 	}
 
 	private openReadme() {
