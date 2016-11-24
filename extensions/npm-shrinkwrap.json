@@ -5,7 +5,7 @@
     "typescript": {
       "version": "2.0.10",
       "from": "typescript@>=2.0.10 <3.0.0",
-      "resolved": "https://registry.npmjs.org/typescript/-/typescript-2.0.10.tgz"
+      "resolved": "https://registry.npm.taobao.org/typescript/-/typescript-2.0.10.tgz"
     }
   }
 }

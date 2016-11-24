@@ -432,7 +432,7 @@
     "xterm": {
       "version": "2.1.0",
       "from": "xterm@2.1.0",
-      "resolved": "https://registry.npmjs.org/xterm/-/xterm-2.1.0.tgz"
+      "resolved": "https://registry.npm.taobao.org/xterm/-/xterm-2.1.0.tgz"
     },
     "yauzl": {
       "version": "2.3.1",
