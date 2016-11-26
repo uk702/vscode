@@ -17,22 +17,11 @@ export interface IViewletService {
 
 	onDidViewletOpen: Event<IViewlet>;
 	onDidViewletClose: Event<IViewlet>;
-	onDidViewletToggle: Event<void>;
 
 	/**
 	 * Opens a viewlet with the given identifier and pass keyboard focus to it if specified.
 	 */
 	openViewlet(id: string, focus?: boolean): TPromise<IViewlet>;
-
-	/**
-	 * Allows to wait until all viewlets are ready, including contributed ones.
-	 */
-	onReady(): TPromise<void>;
-
-	/**
-	 * Toggles a viewlet with the given identifier.
-	 */
-	toggleViewlet(id: string): void;
 
 	/**
 	 * Returns the current active viewlet or null if none.
@@ -43,16 +32,4 @@ export interface IViewletService {
 	 * Returns all registered viewlets
 	 */
 	getViewlets(): ViewletDescriptor[];
-
-	/**
-	 * Returns all viewlets that should be displayed, ordered by:
-	 * - Stock Viewlets: order attribute
-	 * - External Viewlets: enabling sequence
-	 */
-	getAllViewletsToDisplay(): ViewletDescriptor[];
-
-	/**
-	 * Checks if an extension is enabled
-	 */
-	isViewletEnabled(id: string): boolean;
 }

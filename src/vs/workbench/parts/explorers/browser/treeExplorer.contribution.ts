@@ -17,7 +17,7 @@ import { CustomTreeExplorerService } from 'vs/workbench/parts/explorers/browser/
 import { registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { ViewletRegistry, Extensions as ViewletExtensions, ViewletDescriptor, ToggleViewletAction } from 'vs/workbench/browser/viewlet';
 import { ITreeExplorer } from 'vs/platform/extensionManagement/common/extensionManagement';
-import { toCustomExplorerViewletId, toCustomExplorerViewletCSSClass, isValidViewletId } from 'vs/workbench/parts/explorers/common/treeExplorer';
+import { toViewletId, toViewletCSSClass, isValidViewletId } from 'vs/workbench/parts/explorers/common/treeExplorer';
 import { IWorkbenchContribution, IWorkbenchContributionsRegistry, Extensions as WorkbenchExtensions } from 'vs/workbench/common/contributions';
 import { IWorkbenchActionRegistry, Extensions as ActionExtensions } from 'vs/workbench/common/actionRegistry';
 import { SyncActionDescriptor } from 'vs/platform/actions/common/actions';
@@ -77,16 +77,16 @@ export class ExtensionExplorersContribtion implements IWorkbenchContribution {
 					continue;
 				}
 
+				const viewletId = toViewletId(treeExplorerNodeProviderId);
+				const viewletCSSClass = toViewletCSSClass(treeExplorerNodeProviderId);
+
 				// Generate CSS to show the icon in the activity bar
-				const getIconRule = (iconPath) => { return `background-image: url('${iconPath}')`; };
 				if (icon) {
-					const iconClass = `.monaco-workbench > .activitybar .monaco-action-bar .action-label.${toCustomExplorerViewletCSSClass(treeExplorerNodeProviderId)}`;
+					const iconClass = `.monaco-workbench > .activitybar .monaco-action-bar .action-label.${viewletCSSClass}`;
 					const iconPath = join(extension.description.extensionFolderPath, icon);
 
-					createCSSRule(iconClass, getIconRule(iconPath));
+					createCSSRule(iconClass, `background-image: url('${iconPath}')`);
 				}
-
-				const viewletId = toCustomExplorerViewletId(treeExplorerNodeProviderId);
 
 				// Register action to open the viewlet
 				const registry = Registry.as<IWorkbenchActionRegistry>(ActionExtensions.WorkbenchActions);
@@ -102,7 +102,7 @@ export class ExtensionExplorersContribtion implements IWorkbenchContribution {
 					'TreeExplorerViewlet',
 					viewletId,
 					treeLabel,
-					viewletId,
+					viewletCSSClass,
 					-1, 	// External viewlets are ordered by enabling sequence, so order here doesn't matter.
 					true 	// from extension
 				));
