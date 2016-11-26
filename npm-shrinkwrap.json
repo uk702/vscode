@@ -150,7 +150,7 @@
     "fsevents": {
       "version": "0.3.8",
       "from": "bpasero/fsevents#vscode",
-      "resolved": "git+https://github.com/bpasero/fsevents.git#fe2aaccaaffbd69a23374cf46a8c6bafe8e51b01"
+      "resolved": "https://registry.npm.taobao.org/fsevents/-/fsevents-0.3.8.tgz"
     },
     "gc-signals": {
       "version": "0.0.1",
