@@ -109,3 +109,4 @@ import 'vs/workbench/parts/watermark/electron-browser/watermark';
 import 'vs/workbench/parts/mybooks/browser/mybooks.contribution';
 // import 'vs/workbench/parts/search/browser/searchViewlet';
 // import 'vs/workbench/parts/search/browser/openAnythingHandler';
+import 'vs/workbench/parts/viewpicker/browser/viewpicker.contribution';
