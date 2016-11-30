@@ -320,15 +320,16 @@ var options={
     port:9000,
 	// path:"/login",
 	//path:"/note/listNotes",
-    //path:"/note/583ad39107fff52c81000019",
+    //path:"/noted/582fb4e907fff52eb600000e",
+	path:"/noted/583ad39107fff52c81000019",
 	//path:"/preview/view/583ad39107fff52c81000019",
 	//path:"/blog",
-	path:"/blog/post/admin/Golang-json",
+	//path:"/blog/post/admin/Golang-json",
     method:"GET"
 };
 var req=http.request(options, (res) => {
-    console.log("状态码:"+res.statusCode);
-    console.log("响应头:"+JSON.stringify(res.headers));
+    // console.log("状态码:"+res.statusCode);
+    // console.log("响应头:"+JSON.stringify(res.headers));
     res.setEncoding("utf8");
 	res.on("data", (chunk) => {
 
@@ -340,8 +341,11 @@ var req=http.request(options, (res) => {
 
 				webview.style(this.themeService.getColorTheme());
 				// webview.contents = ["<a href='https://github.com/'>github</a>"];
-				console.log("响应内容:"+chunk);
-				webview.contents = [chunk];
+				// console.log("响应内容:"+chunk);
+				let resultContent = JSON.parse(chunk)
+				console.log("Content:"+resultContent.Content);
+
+				webview.contents = [resultContent.Content];
 				this.contentDisposables.push(webview);
     });
 });
