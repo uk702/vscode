@@ -318,12 +318,17 @@ var http=require("http");
 var options={
   hostname:"127.0.0.1",
     port:9000,
-    path:"/",
+	// path:"/login",
+	//path:"/note/listNotes",
+    //path:"/note/583ad39107fff52c81000019",
+	//path:"/preview/view/583ad39107fff52c81000019",
+	//path:"/blog",
+	path:"/blog/post/admin/Golang-json",
     method:"GET"
 };
 var req=http.request(options, (res) => {
-    // console.log("状态码:"+res.statusCode);
-    // console.log("响应头:"+JSON.stringify(res.headers));
+    console.log("状态码:"+res.statusCode);
+    console.log("响应头:"+JSON.stringify(res.headers));
     res.setEncoding("utf8");
 	res.on("data", (chunk) => {
 
