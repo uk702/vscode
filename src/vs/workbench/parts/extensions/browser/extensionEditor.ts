@@ -321,7 +321,7 @@ var options={
 	// path:"/login",
 	//path:"/note/listNotes",
     //path:"/noted/582fb4e907fff52eb600000e",
-	path:"/noted/5827ae5607fff5705c000002",
+	path:"/noted/583013ad07fff57796000009",
 	//path:"/preview/view/583ad39107fff52c81000019",
 	//path:"/blog",
 	//path:"/blog/post/admin/Golang-json",
@@ -342,10 +342,12 @@ var req=http.request(options, (res) => {
 				webview.style(this.themeService.getColorTheme());
 				// webview.contents = ["<a href='https://github.com/'>github</a>"];
 				// console.log("响应内容:"+chunk);
-				let resultContent = JSON.parse(chunk)
-				console.log("Content:"+resultContent.Content);
+				//let resultContent = JSON.parse(chunk)
+				//console.log("Content:"+resultContent.Content);
+				//webview.contents = [resultContent.Content];
 
-				webview.contents = [resultContent.Content];
+				// console.log("Lilx, Content: " + chunk);
+				webview.contents = [chunk];
 				this.contentDisposables.push(webview);
     });
 });
