@@ -23,7 +23,7 @@ import timer = require('vs/base/common/timer');
 import { IStartupFingerprint, IMemoryInfo } from 'vs/workbench/electron-browser/common';
 import { Workbench } from 'vs/workbench/electron-browser/workbench';
 import { StorageService, inMemoryLocalStorageInstance } from 'vs/workbench/services/storage/common/storageService';
-import { ITelemetryService, NullTelemetryService, configurationTelemetry, loadExperiments } from 'vs/platform/telemetry/common/telemetry';
+import { ITelemetryService, NullTelemetryService, configurationTelemetry, loadExperiments, lifecycleTelemetry } from 'vs/platform/telemetry/common/telemetry';
 import { ITelemetryAppenderChannel, TelemetryAppenderClient } from 'vs/platform/telemetry/common/telemetryIpc';
 import { TelemetryService, ITelemetryServiceConfig } from 'vs/platform/telemetry/common/telemetryService';
 import { IdleMonitor, UserStatus } from 'vs/platform/telemetry/browser/idleMonitor';
@@ -74,6 +74,7 @@ import { MainThreadModeServiceImpl } from 'vs/editor/common/services/modeService
 import { IModeService } from 'vs/editor/common/services/modeService';
 import { IUntitledEditorService, UntitledEditorService } from 'vs/workbench/services/untitled/common/untitledEditorService';
 import { CrashReporter } from 'vs/workbench/electron-browser/crashReporter';
+import { NodeCachedDataManager } from 'vs/workbench/electron-browser/nodeCachedDataManager';
 import { IThemeService } from 'vs/workbench/services/themes/common/themeService';
 import { ThemeService } from 'vs/workbench/services/themes/electron-browser/themeService';
 import { getDelayedChannel } from 'vs/base/parts/ipc/common/ipc';
@@ -169,7 +170,12 @@ export class WorkbenchShell {
 		this.workbench = instantiationService.createInstance(Workbench, parent.getHTMLElement(), workbenchContainer.getHTMLElement(), this.workspace, this.options, serviceCollection);
 		this.workbench.startup({
 			onWorkbenchStarted: (customKeybindingsCount, restoreViewletDuration, restoreEditorsDuration) => {
+
+				// run workbench started logic
 				this.onWorkbenchStarted(customKeybindingsCount, restoreViewletDuration, restoreEditorsDuration);
+
+				// start cached data manager
+				instantiationService.createInstance(NodeCachedDataManager);
 			}
 		});
 
@@ -366,6 +372,7 @@ export class WorkbenchShell {
 		const lifecycleService = instantiationService.createInstance(LifecycleService);
 		this.toUnbind.push(lifecycleService.onShutdown(reason => disposables.dispose()));
 		serviceCollection.set(ILifecycleService, lifecycleService);
+		disposables.add(lifecycleTelemetry(this.telemetryService, lifecycleService));
 
 		const extensionManagementChannel = getDelayedChannel<IExtensionManagementChannel>(sharedProcess.then(c => c.getChannel('extensions')));
 		const extensionManagementChannelClient = new ExtensionManagementChannelClient(extensionManagementChannel);
