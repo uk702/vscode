@@ -3,13 +3,8 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-'use strict';
-
-import { Server } from 'vs/base/parts/ipc/node/ipc.cp';
-import { SearchWorkerChannel } from './searchWorkerIpc';
-import { SearchWorkerManager } from './searchWorker';
-
-const server = new Server();
-const worker = new SearchWorkerManager();
-const channel = new SearchWorkerChannel(worker);
-server.registerChannel('searchWorker', channel);
+/// <reference path='../../../../src/vs/vscode.d.ts'/>
+/// <reference path='../../../../src/typings/mocha.d.ts'/>
+/// <reference path='../../../../extensions/node.d.ts'/>
+/// <reference path='../../../../extensions/lib.core.d.ts'/>
+/// <reference path='../../../../extensions/declares.d.ts'/>
