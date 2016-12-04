@@ -15,9 +15,9 @@ import { isFalsyOrEmpty } from 'vs/base/common/arrays';
 import * as dom from 'vs/base/browser/dom';
 import { IKeyboardEvent, StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { ICommandService, CommandsRegistry, ICommandHandlerDescription } from 'vs/platform/commands/common/commands';
-import { KeybindingResolver } from 'vs/platform/keybinding/common/keybindingResolver';
+import { KeybindingResolver, IResolveResult } from 'vs/platform/keybinding/common/keybindingResolver';
 import { IKeybindingItem, IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
-import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
+import { IContextKeyService, IContextKeyServiceTarget } from 'vs/platform/contextkey/common/contextkey';
 import { KeybindingsRegistry } from 'vs/platform/keybinding/common/keybindingsRegistry';
 import { IStatusbarService } from 'vs/platform/statusbar/common/statusbar';
 import { IMessageService } from 'vs/platform/message/common/message';
@@ -142,7 +142,10 @@ export abstract class KeybindingService implements IKeybindingService {
 		return '// ' + nls.localize('unboundCommands', "Here are other available commands: ") + '\n// - ' + pretty;
 	}
 
-	protected _dispatch(e: IKeyboardEvent): void {
+	public resolve(keybinding: Keybinding, target: IContextKeyServiceTarget): IResolveResult {
+		const keyCode = keybinding.extractKeyCode();
+		let isModifierKey = (keyCode === KeyCode.Ctrl || keyCode === KeyCode.Shift || keyCode === KeyCode.Alt || keyCode === KeyCode.Meta);
+		
 		// Lilx
 		// var myDate = new Date();
 		// console.log("Lilx: " +
@@ -154,19 +157,25 @@ export abstract class KeybindingService implements IKeybindingService {
 		// (myDate.getSeconds() > 9 ? myDate.getSeconds() : "0" + myDate.getSeconds()) + "." +
 		// (myDate.getMilliseconds() > 99 ? myDate.getMilliseconds() : myDate.getMilliseconds() > 9 ? "0" + myDate.getMilliseconds() : "00" + myDate.getMilliseconds()) +
 		// ", keycode = " + e.keyCode)
-
-		let isModifierKey = (e.keyCode === KeyCode.Ctrl || e.keyCode === KeyCode.Shift || e.keyCode === KeyCode.Alt || e.keyCode === KeyCode.Meta);
+		
 		if (isModifierKey) {
+			return null;
+		}
+
+		let contextValue = this._contextKeyService.getContextValue(target);
+
+		return this._getResolver().resolve(contextValue, this._currentChord, keybinding.value);
+	}
+
+	protected _dispatch(e: IKeyboardEvent): void {
+		const resolveResult = this.resolve(new Keybinding(e.asKeybinding()), e.target);
+
+		// 处理如 Ctrl+K a 等组合键
+		if (!resolveResult) {
 			return;
 		}
 
-		let contextValue = this._contextKeyService.getContextValue(e.target);
-		// console.log(JSON.stringify(contextValue, null, '\t'));
-
-		// 处理如 Ctrl+K a 等组合键
-		let resolveResult = this._getResolver().resolve(contextValue, this._currentChord, e.asKeybinding());
-
-		if (resolveResult && resolveResult.enterChord) {
+		if (resolveResult.enterChord) {
 			e.preventDefault();
 			this._currentChord = resolveResult.enterChord;
 			if (this._statusService) {
