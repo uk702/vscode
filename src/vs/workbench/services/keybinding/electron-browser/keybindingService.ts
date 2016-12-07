@@ -16,11 +16,11 @@ import { KeybindingService } from 'vs/platform/keybinding/browser/keybindingServ
 import { IStatusbarService } from 'vs/platform/statusbar/common/statusbar';
 import { IOSupport } from 'vs/platform/keybinding/common/keybindingResolver';
 import { ICommandService } from 'vs/platform/commands/common/commands';
-import { IKeybindingItem, IUserFriendlyKeybinding } from 'vs/platform/keybinding/common/keybinding';
+import { IKeybindingItem, IUserFriendlyKeybinding, KeybindingSource } from 'vs/platform/keybinding/common/keybinding';
 import { IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 import { IKeybindingRule, KeybindingsRegistry } from 'vs/platform/keybinding/common/keybindingsRegistry';
 import { Registry } from 'vs/platform/platform';
-import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
+import { ITelemetryService, keybindingsTelemetry } from 'vs/platform/telemetry/common/telemetry';
 import { getNativeLabelProvider, getNativeAriaLabelProvider } from 'vs/workbench/services/keybinding/electron-browser/nativeKeymap';
 import { IMessageService } from 'vs/platform/message/common/message';
 import { ConfigWatcher } from 'vs/base/node/config';
@@ -138,13 +138,17 @@ export class WorkbenchKeybindingService extends KeybindingService {
 			}
 
 			if (commandAdded) {
-				this.updateResolver();
+				this.updateResolver({ source: KeybindingSource.Default });
 			}
 		});
 
-		this.toDispose.push(this.userKeybindings.onDidUpdateConfiguration(() => this.updateResolver()));
+		this.toDispose.push(this.userKeybindings.onDidUpdateConfiguration(event => this.updateResolver({
+			source: KeybindingSource.User,
+			keybindings: event.config
+		})));
 
 		this._beginListening(domNode);
+		keybindingsTelemetry(telemetryService, this);
 	}
 
 	private _safeGetConfig(): IUserFriendlyKeybinding[] {
@@ -281,14 +285,18 @@ let schema: IJSONSchema = {
 		'properties': {
 			'key': {
 				'type': 'string',
-				'description': nls.localize('keybindings.json.key', 'Key or key sequence (separated by space)'),
+				'description': nls.localize('keybindings.json.key', "Key or key sequence (separated by space)"),
 			},
 			'command': {
-				'description': nls.localize('keybindings.json.command', 'Name of the command to execute'),
+				'description': nls.localize('keybindings.json.command', "Name of the command to execute"),
 			},
 			'when': {
 				'type': 'string',
-				'description': nls.localize('keybindings.json.when', 'Condition when the key is active.')
+				'description': nls.localize('keybindings.json.when', "Condition when the key is active.")
+			},
+			'args': {
+				'type': 'object',
+				'description': nls.localize('keybindings.json.args', "Arguments to pass to the command to execute.")
 			}
 		}
 	}

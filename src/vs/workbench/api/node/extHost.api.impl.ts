@@ -96,7 +96,7 @@ export function createApiFactory(initData: IInitData, threadService: IThreadServ
 
 		if (extension.enableProposedApi) {
 
-			if (initData.environment.isBuilt && !initData.environment.extensionDevelopmentPath) {
+			if (!initData.environment.enableProposedApi) {
 				extension.enableProposedApi = false;
 				console.warn('PROPOSED API is only available when developing an extension');
 
@@ -451,9 +451,9 @@ function createExtensionPathIndex(extensionService: ExtHostExtensionService): TP
 		return new TPromise((resolve, reject) => {
 			realpath(ext.extensionFolderPath, (err, path) => {
 				if (err) {
-					trie.insert(path, ext);
 					reject(err);
 				} else {
+					trie.insert(path, ext);
 					resolve(void 0);
 				}
 			});

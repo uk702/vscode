@@ -21,6 +21,7 @@ import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IWindowIPCService } from 'vs/workbench/services/window/electron-browser/windowService';
 import { ChildProcess, fork } from 'child_process';
 import { ipcRenderer as ipc } from 'electron';
+import product from 'vs/platform/product';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { ReloadWindowAction } from 'vs/workbench/electron-browser/actions';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
@@ -189,15 +190,15 @@ export class ExtensionHostProcessWorker {
 			findFreePort(extensionHostPort, 10 /* try 10 ports */, 5000 /* try up to 5 seconds */, (port) => {
 				if (!port) {
 					console.warn('%c[Extension Host] %cCould not find a free port for debugging', 'color: blue', 'color: black');
-					c(void 0);
+					return c(void 0);
 				}
 				if (port !== extensionHostPort) {
-					console.warn('%c[Extension Host] %cProvided debugging port ' + extensionHostPort + ' is not free, using ' + port + ' instead.', 'color: blue', 'color: black');
+					console.warn(`%c[Extension Host] %cProvided debugging port ${extensionHostPort} is not free, using ${port} instead.`, 'color: blue', 'color: black');
 				}
 				if (this.isExtensionDevelopmentDebugging) {
-					console.warn('%c[Extension Host] %cSTOPPED on first line for debugging on port ' + port, 'color: blue', 'color: black');
+					console.warn(`%c[Extension Host] %cSTOPPED on first line for debugging on port ${port}`, 'color: blue', 'color: black');
 				} else {
-					console.info('%c[Extension Host] %cdebugger listening on port ' + port, 'color: blue', 'color: black');
+					console.info(`%c[Extension Host] %cdebugger listening on port ${port}`, 'color: blue', 'color: black');
 				}
 				return c(port);
 			});
@@ -249,12 +250,13 @@ export class ExtensionHostProcessWorker {
 			let initData: IInitData = {
 				parentPid: process.pid,
 				environment: {
-					isBuilt: this.environmentService.isBuilt,
 					appSettingsHome: this.environmentService.appSettingsHome,
 					disableExtensions: this.environmentService.disableExtensions,
 					userExtensionsHome: this.environmentService.extensionsPath,
 					extensionDevelopmentPath: this.environmentService.extensionDevelopmentPath,
-					extensionTestsPath: this.environmentService.extensionTestsPath
+					extensionTestsPath: this.environmentService.extensionTestsPath,
+					// globally disable proposed api when built and not insiders developing extensions
+					enableProposedApi: !this.environmentService.isBuilt || (!!this.environmentService.extensionDevelopmentPath && product.nameLong.indexOf('Insiders') >= 0)
 				},
 				contextService: {
 					workspace: this.contextService.getWorkspace()

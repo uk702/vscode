@@ -16,7 +16,7 @@ import * as dom from 'vs/base/browser/dom';
 import { IKeyboardEvent, StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { ICommandService, CommandsRegistry, ICommandHandlerDescription } from 'vs/platform/commands/common/commands';
 import { KeybindingResolver, IResolveResult } from 'vs/platform/keybinding/common/keybindingResolver';
-import { IKeybindingItem, IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
+import { IKeybindingEvent, IKeybindingItem, IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { IContextKeyService, IContextKeyServiceTarget } from 'vs/platform/contextkey/common/contextkey';
 import { KeybindingsRegistry } from 'vs/platform/keybinding/common/keybindingsRegistry';
 import { IStatusbarService } from 'vs/platform/statusbar/common/statusbar';
@@ -32,7 +32,7 @@ export abstract class KeybindingService implements IKeybindingService {
 	private _firstTimeComputingResolver: boolean;
 	private _currentChord: number;
 	private _currentChordStatusMessage: IDisposable;
-	private _onDidUpdateKeybindings: Emitter<void>;
+	private _onDidUpdateKeybindings: Emitter<IKeybindingEvent>;
 
 	private _contextKeyService: IContextKeyService;
 	protected _commandService: ICommandService;
@@ -54,7 +54,7 @@ export abstract class KeybindingService implements IKeybindingService {
 		this._firstTimeComputingResolver = true;
 		this._currentChord = 0;
 		this._currentChordStatusMessage = null;
-		this._onDidUpdateKeybindings = new Emitter<void>();
+		this._onDidUpdateKeybindings = new Emitter<IKeybindingEvent>();
 		this.toDispose.push(this._onDidUpdateKeybindings);
 	}
 
@@ -77,7 +77,7 @@ export abstract class KeybindingService implements IKeybindingService {
 		return this._cachedResolver;
 	}
 
-	get onDidUpdateKeybindings(): Event<void> {
+	get onDidUpdateKeybindings(): Event<IKeybindingEvent> {
 		return this._onDidUpdateKeybindings ? this._onDidUpdateKeybindings.event : Event.None; // Sinon stubbing walks properties on prototype
 	}
 
@@ -97,9 +97,9 @@ export abstract class KeybindingService implements IKeybindingService {
 		return keybinding._toElectronAccelerator();
 	}
 
-	protected updateResolver(): void {
+	protected updateResolver(event: IKeybindingEvent): void {
 		this._cachedResolver = null;
-		this._onDidUpdateKeybindings.fire();
+		this._onDidUpdateKeybindings.fire(event);
 	}
 
 	protected _getExtraKeybindings(isFirstTime: boolean): IKeybindingItem[] {
@@ -142,40 +142,33 @@ export abstract class KeybindingService implements IKeybindingService {
 		return '// ' + nls.localize('unboundCommands', "Here are other available commands: ") + '\n// - ' + pretty;
 	}
 
-	public resolve(keybinding: Keybinding, target: IContextKeyServiceTarget): IResolveResult {
-		const keyCode = keybinding.extractKeyCode();
-		let isModifierKey = (keyCode === KeyCode.Ctrl || keyCode === KeyCode.Shift || keyCode === KeyCode.Alt || keyCode === KeyCode.Meta);
-		
-		// Lilx
-		// var myDate = new Date();
-		// console.log("Lilx: " +
-		// myDate.getFullYear() + "/" +
-		// (myDate.getMonth() > 9 ? myDate.getMonth() : "0" + myDate.getMonth()) + "/" +
-		// (myDate.getDay() > 9 ? myDate.getDay() : "0" + myDate.getDay()) + " " +
-		// (myDate.getHours() > 9 ? myDate.getHours() : "0" + myDate.getHours()) + ":" +
-		// (myDate.getMinutes() > 9 ? myDate.getMinutes() : "0" + myDate.getMinutes()) + ":" +
-		// (myDate.getSeconds() > 9 ? myDate.getSeconds() : "0" + myDate.getSeconds()) + "." +
-		// (myDate.getMilliseconds() > 99 ? myDate.getMilliseconds() : myDate.getMilliseconds() > 9 ? "0" + myDate.getMilliseconds() : "00" + myDate.getMilliseconds()) +
-		// ", keycode = " + e.keyCode)
-		
-		if (isModifierKey) {
-			return null;
+	public resolve(keybinding: Keybinding, target: IContextKeyServiceTarget, skipModifierKeyEvaluation?: boolean): IResolveResult {
+		// To prevent additional work, calling this function internally is allowed to skip the
+		// modifier key evaludation.
+		if (!skipModifierKeyEvaluation) {
+			if (this._isModifierKey(keybinding)) {
+				return null;
+			}
 		}
 
-		let contextValue = this._contextKeyService.getContextValue(target);
-
+		const contextValue = this._contextKeyService.getContextValue(target);
 		return this._getResolver().resolve(contextValue, this._currentChord, keybinding.value);
 	}
 
-	protected _dispatch(e: IKeyboardEvent): void {
-		const resolveResult = this.resolve(new Keybinding(e.asKeybinding()), e.target);
+	private _isModifierKey(keybinding: Keybinding): boolean {
+		const keyCode = keybinding.extractKeyCode();
+		return (keyCode === KeyCode.Ctrl || keyCode === KeyCode.Shift || keyCode === KeyCode.Alt || keyCode === KeyCode.Meta);
+	}
 
-		// 处理如 Ctrl+K a 等组合键
-		if (!resolveResult) {
-			return;
+	protected _dispatch(e: IKeyboardEvent): void {
+		const keybinding = new Keybinding(e.asKeybinding());
+		if (this._isModifierKey(keybinding)) {
+			return null;
 		}
 
-		if (resolveResult.enterChord) {
+		const resolveResult = this.resolve(keybinding, e.target, true);
+
+		if (resolveResult && resolveResult.enterChord) {
 			e.preventDefault();
 			this._currentChord = resolveResult.enterChord;
 			if (this._statusService) {

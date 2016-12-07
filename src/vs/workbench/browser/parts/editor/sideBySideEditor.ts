@@ -12,7 +12,7 @@ import { Dimension, Builder } from 'vs/base/browser/builder';
 import { Registry } from 'vs/platform/platform';
 import { IEditorRegistry, Extensions as EditorExtensions, EditorInput, EditorOptions, SideBySideEditorInput } from 'vs/workbench/common/editor';
 import { BaseEditor, EditorDescriptor } from 'vs/workbench/browser/parts/editor/baseEditor';
-import { IEditorControl, Position } from 'vs/platform/editor/common/editor';
+import { IEditorControl, Position, IEditor } from 'vs/platform/editor/common/editor';
 import { VSash } from 'vs/base/browser/ui/sash/sash';
 
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
@@ -100,6 +100,14 @@ export class SideBySideEditor extends BaseEditor {
 		return null;
 	}
 
+	public getMasterEditor(): IEditor {
+		return this.masterEditor;
+	}
+
+	public getDetailsEditor(): IEditor {
+		return this.detailsEditor;
+	}
+
 	private updateInput(oldInput: SideBySideEditorInput, newInput: SideBySideEditorInput, options?: EditorOptions): TPromise<void> {
 		if (!newInput.matches(oldInput)) {
 			if (oldInput) {
@@ -117,7 +125,7 @@ export class SideBySideEditor extends BaseEditor {
 		return TPromise.join([
 			this._createEditor(<EditorInput>newInput.details, this.detailsEditorContainer),
 			this._createEditor(<EditorInput>newInput.master, this.masterEditorContainer, options)
-		]).then(result => this.onEditorsCreated(result[0], result[1]));
+		]).then(result => this.onEditorsCreated(result[0], result[1], newInput.details, newInput.master));
 	}
 
 	private _createEditor(editorInput: EditorInput, container: HTMLElement, options?: EditorOptions): TPromise<BaseEditor> {
@@ -129,15 +137,15 @@ export class SideBySideEditor extends BaseEditor {
 			.then((editor: BaseEditor) => {
 				editor.create(new Builder(container));
 				editor.setVisible(this.isVisible(), this.position);
-				return editor.setInput(editorInput, options).then(() => editor);
+				return editor;
 			});
 	}
 
-	private onEditorsCreated(details: BaseEditor, master: BaseEditor): void {
+	private onEditorsCreated(details: BaseEditor, master: BaseEditor, detailsInput: EditorInput, masterInput: EditorInput): TPromise<void> {
 		this.detailsEditor = details;
 		this.masterEditor = master;
 		this.dolayout(this.sash.getVerticalSashLeft());
-		this.focus();
+		return TPromise.join([this.detailsEditor.setInput(detailsInput), this.masterEditor.setInput(masterInput)]).then(() => this.focus());
 	}
 
 	private createEditorContainers(): void {
@@ -154,7 +162,7 @@ export class SideBySideEditor extends BaseEditor {
 	}
 
 	private dolayout(splitPoint: number): void {
-		if (!this.detailsEditor || !this.masterEditor) {
+		if (!this.detailsEditor || !this.masterEditor || !this.dimension) {
 			return;
 		}
 		const masterEditorWidth = this.dimension.width - splitPoint;

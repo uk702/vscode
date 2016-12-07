@@ -146,6 +146,9 @@ export class Engine implements ISearchEngine<ISerializedFileMatch> {
 				nextBatchBytes = 0;
 			}
 		}, (error, isLimitHit) => {
+			this.walkerIsDone = true;
+			this.walkerError = error;
+
 			// Send any remaining paths to a worker, or unwind if we're stopping
 			if (nextBatch.length) {
 				if (this.limitReached || this.isCanceled) {
@@ -153,10 +156,9 @@ export class Engine implements ISearchEngine<ISerializedFileMatch> {
 				} else {
 					run(nextBatch, nextBatchBytes);
 				}
+			} else {
+				unwind(0);
 			}
-
-			this.walkerIsDone = true;
-			this.walkerError = error;
 		});
 	}
 }

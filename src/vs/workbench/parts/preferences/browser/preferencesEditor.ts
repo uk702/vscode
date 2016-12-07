@@ -11,6 +11,7 @@ import { Delayer } from 'vs/base/common/async';
 import { Dimension, Builder } from 'vs/base/browser/builder';
 import { Disposable, IDisposable, dispose } from 'vs/base/common/lifecycle';
 import { flatten } from 'vs/base/common/arrays';
+import { ArrayIterator } from 'vs/base/common/iterator';
 import { IAction } from 'vs/base/common/actions';
 import { IJSONSchema } from 'vs/base/common/jsonSchema';
 import Event, { Emitter } from 'vs/base/common/event';
@@ -20,8 +21,9 @@ import { EditorOptions, EditorInput, } from 'vs/workbench/common/editor';
 import { IEditorModel } from 'vs/platform/editor/common/editor';
 import { IConfigurationRegistry, Extensions as ConfigurationExtensions } from 'vs/platform/configuration/common/configurationRegistry';
 import * as editorCommon from 'vs/editor/common/editorCommon';
-import { BaseEditor } from 'vs/workbench/browser/parts/editor/baseEditor';
+import { BaseTextEditor } from 'vs/workbench/browser/parts/editor/textEditor';
 import { CodeEditor } from 'vs/editor/browser/codeEditor';
+import { Range } from 'vs/editor/common/core/range';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import {
 	IPreferencesService, ISettingsGroup, ISetting, IPreferencesEditorModel, IFilterResult, CONTEXT_DEFAULT_SETTINGS_EDITOR,
@@ -38,6 +40,13 @@ import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { IThemeService } from 'vs/workbench/services/themes/common/themeService';
 import { IModelService } from 'vs/editor/common/services/modelService';
 import { IModeService } from 'vs/editor/common/services/modeService';
+import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
+import { IStorageService } from 'vs/platform/storage/common/storage';
+import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { IEventService } from 'vs/platform/event/common/event';
+import { IMessageService } from 'vs/platform/message/common/message';
+import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
+import { IUntitledEditorService } from 'vs/workbench/services/untitled/common/untitledEditorService';
 
 // Ignore following contributions
 import { FoldingController } from 'vs/editor/contrib/folding/browser/folding';
@@ -97,10 +106,10 @@ export class DefaultPreferencesEditorInput extends EditorInput {
 	}
 }
 
-export class DefaultPreferencesEditor extends BaseEditor {
+export class DefaultPreferencesEditor extends BaseTextEditor {
 
 	public static ID: string = 'workbench.editor.defaultPreferences';
-	private static VIEW_STATE: Map<URI, editorCommon.ICodeEditorViewState> = new Map<URI, editorCommon.ICodeEditorViewState>();
+	private static VIEW_STATE: Map<URI, editorCommon.IEditorViewState> = new Map<URI, editorCommon.IEditorViewState>();
 
 	private inputDisposeListener;
 	private defaultPreferencesEditor: CodeEditor;
@@ -113,38 +122,39 @@ export class DefaultPreferencesEditor extends BaseEditor {
 
 	constructor(
 		@ITelemetryService telemetryService: ITelemetryService,
-		@IThemeService private themeService: IThemeService,
+		@IInstantiationService instantiationService: IInstantiationService,
+		@IWorkspaceContextService contextService: IWorkspaceContextService,
+		@IStorageService storageService: IStorageService,
+		@IMessageService messageService: IMessageService,
+		@IConfigurationService configurationService: IConfigurationService,
+		@IEventService eventService: IEventService,
+		@IWorkbenchEditorService editorService: IWorkbenchEditorService,
+		@IThemeService themeService: IThemeService,
+		@IUntitledEditorService private untitledEditorService: IUntitledEditorService,
 		@IPreferencesService private preferencesService: IPreferencesService,
-		@IInstantiationService private instantiationService: IInstantiationService,
 		@IModelService private modelService: IModelService,
 		@IModeService private modeService: IModeService
 	) {
-		super(DefaultPreferencesEditor.ID, telemetryService);
+		super(DefaultPreferencesEditor.ID, telemetryService, instantiationService, contextService, storageService, messageService, configurationService, eventService, editorService, themeService);
 		this.delayedFilterLogging = new Delayer<void>(1000);
 	}
 
-	public createEditor(parent: Builder) {
+	public createEditorControl(parent: Builder): editorCommon.IEditor {
 		const parentContainer = parent.getHTMLElement();
 		this.defaultSettingHeaderWidget = this._register(this.instantiationService.createInstance(DefaultSettingsHeaderWidget, parentContainer));
 		this._register(this.defaultSettingHeaderWidget.onDidChange(value => this.filterPreferences(value)));
+		this._register(this.defaultSettingHeaderWidget.onEnter(value => this.focusNextPreference()));
 
-		this.defaultPreferencesEditor = this._register(this.instantiationService.createInstance(DefaultPreferencesCodeEditor, parentContainer, this.getCodeEditorOptions()));
+		this.defaultPreferencesEditor = this.instantiationService.createInstance(DefaultPreferencesCodeEditor, parentContainer, this.getCodeEditorOptions());
 		const focusTracker = this._register(DOM.trackFocus(parentContainer));
 		focusTracker.addBlurListener(() => { this.isFocussed = false; });
-	}
 
-	public getControl(): CodeEditor {
 		return this.defaultPreferencesEditor;
 	}
 
-	private getCodeEditorOptions(): editorCommon.IEditorOptions {
-		const options: editorCommon.IEditorOptions = {
-			overviewRulerLanes: 3,
-			lineNumbersMinChars: 3,
-			theme: this.themeService.getColorTheme(),
-			fixedOverflowWidgets: true,
-			readOnly: true
-		};
+	protected getCodeEditorOptions(): editorCommon.IEditorOptions {
+		const options = super.getCodeEditorOptions();
+		options.readOnly = true;
 		if (this.input && (<DefaultPreferencesEditorInput>this.input).isSettings) {
 			options.lineNumbers = 'off';
 			options.renderLineHighlight = 'none';
@@ -153,6 +163,7 @@ export class DefaultPreferencesEditor extends BaseEditor {
 			options.renderWhitespace = 'none';
 			options.wrappingColumn = 0;
 			options.overviewRulerLanes = 0;
+			options.renderIndentGuides = false;
 		}
 		return options;
 	}
@@ -165,16 +176,12 @@ export class DefaultPreferencesEditor extends BaseEditor {
 	}
 
 	public layout(dimension: Dimension) {
-		if (this.input && (<DefaultPreferencesEditorInput>this.input).isSettings) {
-			const headerWidgetPosition = DOM.getDomNodePagePosition(this.defaultSettingHeaderWidget.domNode);
-			this.defaultPreferencesEditor.layout({
-				height: dimension.height - headerWidgetPosition.height,
-				width: dimension.width
-			});
-			this.defaultSettingHeaderWidget.layout(this.defaultPreferencesEditor.getLayoutInfo());
-		} else {
-			this.defaultPreferencesEditor.layout(dimension);
-		}
+		this.defaultSettingHeaderWidget.layout(dimension);
+		const headerWidgetPosition = DOM.getDomNodePagePosition(this.defaultSettingHeaderWidget.domNode);
+		this.defaultPreferencesEditor.layout({
+			height: dimension.height - headerWidgetPosition.height,
+			width: dimension.width
+		});
 	}
 
 	public focus(): void {
@@ -202,17 +209,19 @@ export class DefaultPreferencesEditor extends BaseEditor {
 		this.defaultPreferencesEditor.setModel(model);
 		this.defaultPreferencesEditor.updateOptions(this.getCodeEditorOptions());
 		if (input.isSettings) {
-			this.defaultSettingHeaderWidget.show();
 			this.defaultPreferencesEditor.onDidFocusEditorText(() => this.onEditorTextFocussed(), this.toDispose);
 		} else {
 			this.toDispose = dispose(this.toDispose);
-			this.defaultSettingHeaderWidget.hide();
 		}
 	}
 
 	private filterPreferences(filter: string) {
 		this.delayedFilterLogging.trigger(() => this.reportFilteringUsed(filter));
 		(<DefaultSettingsRenderer>this.getDefaultPreferencesContribution().getPreferencesRenderer()).filterPreferences(filter);
+	}
+
+	private focusNextPreference() {
+		(<DefaultSettingsRenderer>this.getDefaultPreferencesContribution().getPreferencesRenderer()).focusNextSetting();
 	}
 
 	public clearInput(): void {
@@ -261,17 +270,17 @@ export class DefaultPreferencesEditor extends BaseEditor {
 		}
 	}
 
-	private disposeModel() {
-		const model = this.defaultPreferencesEditor.getModel();
-		if (model) {
-			model.dispose();
-		}
-	}
-
 	private reportFilteringUsed(filter: string): void {
 		let data = {};
 		data['filter'] = filter;
 		this.telemetryService.publicLog('defaultSettings.filter', data);
+	}
+
+	private disposeModel(): void {
+		const model = this.defaultPreferencesEditor.getModel();
+		if (model) {
+			this.modelService.destroyModel(model.uri);
+		}
 	}
 }
 
@@ -383,6 +392,7 @@ export class DefaultSettingsRenderer extends Disposable implements IPreferencesR
 
 	private settingsGroupTitleRenderer: SettingsGroupTitleRenderer;
 	private filteredMatchesRenderer: FilteredMatchesRenderer;
+	private focusNextSettingRenderer: FocusNextSettingRenderer;
 	private hiddenAreasRenderer: HiddenAreasRenderer;
 	private copySettingActionRenderer: CopySettingActionRenderer;
 	private settingsCountWidget: SettingsCountWidget;
@@ -396,6 +406,7 @@ export class DefaultSettingsRenderer extends Disposable implements IPreferencesR
 		this.defaultSettingsEditorContextKey = CONTEXT_DEFAULT_SETTINGS_EDITOR.bindTo(contextKeyService);
 		this.settingsGroupTitleRenderer = this._register(instantiationService.createInstance(SettingsGroupTitleRenderer, editor));
 		this.filteredMatchesRenderer = this._register(instantiationService.createInstance(FilteredMatchesRenderer, editor));
+		this.focusNextSettingRenderer = this._register(instantiationService.createInstance(FocusNextSettingRenderer, editor));
 		this.copySettingActionRenderer = this._register(instantiationService.createInstance(CopySettingActionRenderer, editor, true));
 		this.settingsCountWidget = this._register(instantiationService.createInstance(SettingsCountWidget, editor, this.getCount(settingsEditorModel.settingsGroups)));
 		const paranthesisHidingRenderer = this._register(instantiationService.createInstance(ParanthesisHidingRenderer, editor));
@@ -408,6 +419,7 @@ export class DefaultSettingsRenderer extends Disposable implements IPreferencesR
 		this.copySettingActionRenderer.render(this.settingsEditorModel.settingsGroups);
 		this.settingsCountWidget.render();
 		this.hiddenAreasRenderer.render();
+		this.focusNextSettingRenderer.render([]);
 		this.settingsGroupTitleRenderer.showGroup(1);
 	}
 
@@ -418,7 +430,17 @@ export class DefaultSettingsRenderer extends Disposable implements IPreferencesR
 		this.settingsCountWidget.show(this.getCount(filterResult.filteredGroups));
 
 		if (!filter) {
+			this.focusNextSettingRenderer.render([]);
 			this.settingsGroupTitleRenderer.showGroup(1);
+		} else {
+			this.focusNextSettingRenderer.render(filterResult.filteredGroups);
+		}
+	}
+
+	public focusNextSetting(): void {
+		const setting = this.focusNextSettingRenderer.focusNext();
+		if (setting) {
+			this.settingsGroupTitleRenderer.showSetting(setting);
 		}
 	}
 
@@ -437,7 +459,7 @@ export class DefaultSettingsRenderer extends Disposable implements IPreferencesR
 	}
 
 	dispose() {
-		this.defaultSettingsEditorContextKey.reset();
+		this.defaultSettingsEditorContextKey.set(false);
 		super.dispose();
 	}
 }
@@ -518,16 +540,25 @@ export class SettingsGroupTitleRenderer extends Disposable implements HiddenArea
 	public showGroup(group: number) {
 		this.hiddenGroups = this.settingsGroups.filter((g, i) => i !== group - 1);
 		for (const groupTitleWidget of this.settingsGroupTitleWidgets.filter((g, i) => i !== group - 1)) {
-			groupTitleWidget.collapse();
+			groupTitleWidget.toggleCollapse(true);
 		}
 		this._onHiddenAreasChanged.fire();
+	}
+
+	public showSetting(setting: ISetting): void {
+		const settingsGroupTitleWidget = this.settingsGroupTitleWidgets.filter(widget => Range.containsRange(widget.settingsGroup.range, setting.range))[0];
+		if (settingsGroupTitleWidget && settingsGroupTitleWidget.isCollapsed()) {
+			settingsGroupTitleWidget.toggleCollapse(false);
+			this.hiddenGroups.splice(this.hiddenGroups.indexOf(settingsGroupTitleWidget.settingsGroup), 1);
+			this._onHiddenAreasChanged.fire();
+		}
 	}
 
 	public collapseAll() {
 		this.editor.setPosition({ lineNumber: 1, column: 1 });
 		this.hiddenGroups = this.settingsGroups.slice();
 		for (const groupTitleWidget of this.settingsGroupTitleWidgets) {
-			groupTitleWidget.collapse();
+			groupTitleWidget.toggleCollapse(true);
 		}
 		this._onHiddenAreasChanged.fire();
 	}
@@ -559,6 +590,8 @@ export class SettingsGroupTitleRenderer extends Disposable implements HiddenArea
 
 export class HiddenAreasRenderer extends Disposable {
 
+	private model: editorCommon.IModel;
+
 	constructor(private editor: ICodeEditor, private hiddenAreasProviders: HiddenAreasProvider[],
 		@IInstantiationService private instantiationService: IInstantiationService
 	) {
@@ -569,11 +602,17 @@ export class HiddenAreasRenderer extends Disposable {
 	}
 
 	public render() {
+		this.model = this.editor.getModel();
 		const ranges: editorCommon.IRange[] = [];
 		for (const hiddenAreaProvider of this.hiddenAreasProviders) {
 			ranges.push(...hiddenAreaProvider.hiddenAreas);
 		}
 		this.editor.setHiddenAreas(ranges);
+	}
+
+	public dispose() {
+		this.editor.setHiddenAreas([]);
+		super.dispose();
 	}
 }
 
@@ -676,9 +715,71 @@ export class FilteredMatchesRenderer extends Disposable implements HiddenAreasPr
 	public dispose() {
 		if (this.decorationIds && this.editor.getModel()) {
 			this.decorationIds = this.editor.getModel().changeDecorations(changeAccessor => {
+				return changeAccessor.deltaDecorations(this.decorationIds, []);
+			});
+		}
+		super.dispose();
+	}
+}
+
+export class FocusNextSettingRenderer extends Disposable {
+
+	private iterator: ArrayIterator<ISetting>;
+	private model: editorCommon.IModel;
+	private decorationIds: string[] = [];
+
+	constructor(private editor: ICodeEditor) {
+		super();
+	}
+
+	public focusNext(): ISetting {
+		this.clear();
+		let setting = this.iterator.next() || this.iterator.first();
+		if (setting) {
+			this.model.changeDecorations(changeAccessor => {
+				this.decorationIds = changeAccessor.deltaDecorations(this.decorationIds, [{
+					range: {
+						startLineNumber: setting.valueRange.startLineNumber,
+						startColumn: this.model.getLineMinColumn(setting.valueRange.startLineNumber),
+						endLineNumber: setting.valueRange.endLineNumber,
+						endColumn: this.model.getLineMaxColumn(setting.valueRange.endLineNumber)
+					},
+					options: {
+						stickiness: editorCommon.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+						className: 'rangeHighlight',
+						isWholeLine: true
+					}
+				}]);
+			});
+			this.editor.revealLinesInCenterIfOutsideViewport(setting.valueRange.startLineNumber, setting.valueRange.endLineNumber - 1);
+			return setting;
+		}
+		return null;
+	}
+
+	public render(filteredGroups: ISettingsGroup[]) {
+		this.clear();
+		this.model = this.editor.getModel();
+
+		const settings: ISetting[] = [];
+		for (const group of filteredGroups) {
+			for (const section of group.sections) {
+				settings.push(...section.settings);
+			}
+		}
+		this.iterator = new ArrayIterator<ISetting>(settings);
+	}
+
+	private clear() {
+		if (this.model) {
+			this.model.changeDecorations(changeAccessor => {
 				this.decorationIds = changeAccessor.deltaDecorations(this.decorationIds, []);
 			});
 		}
+	}
+
+	public dispose() {
+		this.clear();
 		super.dispose();
 	}
 }
@@ -739,8 +840,8 @@ export class CopySettingActionRenderer extends Disposable {
 					options: {
 						afterContentClassName: 'copySetting',
 						stickiness: editorCommon.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-						hoverMessage: canChooseValue ? this.isDefaultSettings ? nls.localize('selectAndCopySetting', "Select a value and copy to settings")
-							: nls.localize('selectValue', "Select a value") : nls.localize('copy', "Copy to settings")
+						hoverMessage: canChooseValue ? this.isDefaultSettings ? nls.localize('selectAndCopySetting', "Select a value and copy to Settings")
+							: nls.localize('selectValue', "Select a value") : nls.localize('copy', "Copy to Settings")
 					}
 				};
 			}
@@ -777,16 +878,12 @@ export class CopySettingActionRenderer extends Disposable {
 		if (setting) {
 			let jsonSchema: IJSONSchema = this.getConfigurationsMap()[setting.key];
 			const actions = this.getActions(setting, jsonSchema);
-			if (actions) {
-				let elementPosition = DOM.getDomNodePagePosition(<HTMLElement>e.target.element);
-				const anchor = { x: elementPosition.left, y: elementPosition.top + elementPosition.height + 10 };
-				this.contextMenuService.showContextMenu({
-					getAnchor: () => anchor,
-					getActions: () => TPromise.wrap(actions)
-				});
-				return;
-			}
-			this.settingsService.copyConfiguration(setting);
+			let elementPosition = DOM.getDomNodePagePosition(<HTMLElement>e.target.element);
+			const anchor = { x: elementPosition.left, y: elementPosition.top + elementPosition.height + 10 };
+			this.contextMenuService.showContextMenu({
+				getAnchor: () => anchor,
+				getActions: () => TPromise.wrap(actions)
+			});
 		}
 	}
 
@@ -829,7 +926,12 @@ export class CopySettingActionRenderer extends Disposable {
 				};
 			});
 		}
-		return null;
+		return [<IAction>{
+			id: 'copyToSettings',
+			label: nls.localize('copyToSettings', "Copy to Settings"),
+			enabled: true,
+			run: () => this.settingsService.copyConfiguration(setting)
+		}];
 	}
 
 	public dispose() {
