@@ -232,13 +232,24 @@ suite('BackupMainService', () => {
 	});
 
 	suite('registerWindowForBackups', () => {
-		test('pushgetWorkspaceBackupPaths()Sync should persist paths to workspaces.json', () => {
+		test('should persist paths to workspaces.json', done => {
 			service.registerWindowForBackupsSync(1, false, null, fooFile.fsPath);
 			service.registerWindowForBackupsSync(2, false, null, barFile.fsPath);
 			assert.deepEqual(service.getWorkspaceBackupPaths(), [fooFile.fsPath, barFile.fsPath]);
 			pfs.readFile(backupWorkspacesPath, 'utf-8').then(buffer => {
 				const json = <IBackupWorkspacesFormat>JSON.parse(buffer);
 				assert.deepEqual(json.folderWorkspaces, [fooFile.fsPath, barFile.fsPath]);
+				done();
+			});
+		});
+
+		test('should always store the workspace path in workspaces.json using the case given, regardless of whether the file system is case-sensitive', done => {
+			service.registerWindowForBackupsSync(1, false, null, fooFile.fsPath.toUpperCase());
+			assert.deepEqual(service.getWorkspaceBackupPaths(), [fooFile.fsPath.toUpperCase()]);
+			pfs.readFile(backupWorkspacesPath, 'utf-8').then(buffer => {
+				const json = <IBackupWorkspacesFormat>JSON.parse(buffer);
+				assert.deepEqual(json.folderWorkspaces, [fooFile.fsPath.toUpperCase()]);
+				done();
 			});
 		});
 	});

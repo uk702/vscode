@@ -544,7 +544,7 @@ export class VSCodeMenu {
 	private setSelectionMenu(winLinuxEditMenu: Electron.Menu): void {
 		const insertCursorAbove = this.createMenuItem(nls.localize({ key: 'miInsertCursorAbove', comment: ['&& denotes a mnemonic'] }, "&&Add Cursor Above"), 'editor.action.insertCursorAbove');
 		const insertCursorBelow = this.createMenuItem(nls.localize({ key: 'miInsertCursorBelow', comment: ['&& denotes a mnemonic'] }, "A&&dd Cursor Below"), 'editor.action.insertCursorBelow');
-		const insertCursorAtEndOfEachLineSelected = this.createMenuItem(nls.localize({ key: 'miInsertCursorAtEndOfEachLineSelected', comment: ['&& denotes a mnemonic'] }, "C&&ursors at Line Ends"), 'editor.action.insertCursorAtEndOfEachLineSelected');
+		const insertCursorAtEndOfEachLineSelected = this.createMenuItem(nls.localize({ key: 'miInsertCursorAtEndOfEachLineSelected', comment: ['&& denotes a mnemonic'] }, "Add C&&ursors to Line Ends"), 'editor.action.insertCursorAtEndOfEachLineSelected');
 		const addSelectionToNextFindMatch = this.createMenuItem(nls.localize({ key: 'miAddSelectionToNextFindMatch', comment: ['&& denotes a mnemonic'] }, "Add &&Next Occurrence"), 'editor.action.addSelectionToNextFindMatch');
 		const addSelectionToPreviousFindMatch = this.createMenuItem(nls.localize({ key: 'miAddSelectionToPreviousFindMatch', comment: ['&& denotes a mnemonic'] }, "Add P&&revious Occurrence"), 'editor.action.addSelectionToPreviousFindMatch');
 		const selectHighlights = this.createMenuItem(nls.localize({ key: 'miSelectHighlights', comment: ['&& denotes a mnemonic'] }, "Select All &&Occurrences"), 'editor.action.selectHighlights');
@@ -564,22 +564,21 @@ export class VSCodeMenu {
 		const smartSelectshrink = this.createMenuItem(nls.localize({ key: 'miSmartSelectShrink', comment: ['&& denotes a mnemonic'] }, "&&Shrink Selection"), 'editor.action.smartSelect.shrink');
 
 		[
-			insertCursorAbove,
-			insertCursorBelow,
-			insertCursorAtEndOfEachLineSelected,
-			__separator__(),
-			addSelectionToNextFindMatch,
-			addSelectionToPreviousFindMatch,
-			selectHighlights,
+			selectAll,
+			smartSelectGrow,
+			smartSelectshrink,
 			__separator__(),
 			copyLinesUp,
 			copyLinesDown,
 			moveLinesUp,
 			moveLinesDown,
 			__separator__(),
-			selectAll,
-			smartSelectGrow,
-			smartSelectshrink,
+			insertCursorAbove,
+			insertCursorBelow,
+			insertCursorAtEndOfEachLineSelected,
+			addSelectionToNextFindMatch,
+			addSelectionToPreviousFindMatch,
+			selectHighlights,
 		].forEach(item => winLinuxEditMenu.append(item));
 	}
 
@@ -602,7 +601,7 @@ export class VSCodeMenu {
 				additionalViewletsMenu.append(this.createMenuItem(viewlet.label, viewlet.id));
 			});
 
-			additionalViewlets = new MenuItem({ label: mnemonicLabel(nls.localize({ key: 'miAdditionalViewlets', comment: ['&& denotes a mnemonic'] }, "Additional &&Viewlets")), submenu: additionalViewletsMenu, enabled: true });
+			additionalViewlets = new MenuItem({ label: mnemonicLabel(nls.localize({ key: 'miAdditionalViews', comment: ['&& denotes a mnemonic'] }, "Additional &&Views")), submenu: additionalViewletsMenu, enabled: true });
 		}
 
 		const commands = this.createMenuItem(nls.localize({ key: 'miCommandPalette', comment: ['&& denotes a mnemonic'] }, "&&Command Palette..."), 'workbench.action.showCommands');

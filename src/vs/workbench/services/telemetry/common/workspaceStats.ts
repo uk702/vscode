@@ -16,8 +16,8 @@ import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace
 import { IOptions } from 'vs/workbench/common/options';
 
 
-const SshProtocolMatcher = /^[^:]+@([^:]+):/;
-const SecondLevelDomainMatcher = /[^.]+\.[^.]+$/;
+const SshProtocolMatcher = /^([^@:]+@)?([^:]+):/;
+const SecondLevelDomainMatcher = /([^@:.]+\.[^@:.]+)(:\d+)?$/;
 const RemoteMatcher = /^\s*url\s*=\s*(.+\S)\s*$/mg;
 
 type Tags = { [index: string]: boolean | number };
@@ -142,13 +142,15 @@ export class WorkspaceStats {
 
 	private stripLowLevelDomains(domain: string): string {
 		let match = domain.match(SecondLevelDomainMatcher);
-		return match ? match[0] : null;
+		return match ? match[1] : null;
 	}
 
 	private extractDomain(url: string): string {
-		let match = url.match(SshProtocolMatcher);
-		if (match) {
-			return this.stripLowLevelDomains(match[1]);
+		if (url.indexOf('://') === -1) {
+			let match = url.match(SshProtocolMatcher);
+			if (match) {
+				return this.stripLowLevelDomains(match[2]);
+			}
 		}
 		try {
 			let uri = URI.parse(url);
@@ -161,7 +163,10 @@ export class WorkspaceStats {
 		return null;
 	}
 
-	private getDomainsOfRemotes(text): string[] {
+	/**
+	 * Public for testing.
+	 */
+	public getDomainsOfRemotes(text): string[] {
 		let domains = new ArraySet<string>(), match;
 		while (match = RemoteMatcher.exec(text)) {
 			let domain = this.extractDomain(match[1]);
