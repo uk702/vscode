@@ -2,7 +2,7 @@
   "name": "code-oss-dev",
   "version": "1.8.0",
   "electronVersion": "1.4.6",
-  "distro": "d063cb1099fdf21be5c61e0b54e6b703b06a7e0f",
+  "distro": "8c3e97e3425cc9814496472ab73e076de2ba99ee",
   "author": {
     "name": "Microsoft Corporation"
   },
@@ -32,8 +32,8 @@
     "native-keymap": "0.3.0",
     "pty.js": "https://github.com/Tyriar/pty.js/tarball/c75c2dcb6dcad83b0cb3ef2ae42d0448fb912642",
     "semver": "4.3.6",
-    "vscode-debugprotocol": "1.14.0",
-    "vscode-textmate": "2.3.1",
+    "vscode-debugprotocol": "1.15.0",
+    "vscode-textmate": "2.3.2",
     "winreg": "1.2.0",
     "xterm": "git+https://github.com/Tyriar/xterm.js.git#vscode-release/1.8",
     "yauzl": "2.3.1"

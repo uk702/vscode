@@ -65,14 +65,14 @@ export class OutputNameValueElement extends AbstractOutputElement implements deb
 		} else if (isObject(this.valueObj)) {
 			return 'Object';
 		} else if (isString(this.valueObj)) {
-			return this.valueObj;
+			return `"${this.valueObj}"`;
 		}
 
 		return String(this.valueObj) || '';
 	}
 
 	public get hasChildren(): boolean {
-		return Object.getOwnPropertyNames(this.valueObj).length > 0;
+		return isObject(this.valueObj) && Object.getOwnPropertyNames(this.valueObj).length > 0;
 	}
 
 	public getChildren(): TPromise<debug.IExpression[]> {

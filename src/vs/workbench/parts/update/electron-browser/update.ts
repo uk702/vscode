@@ -19,7 +19,8 @@ import { ReleaseNotesInput } from 'vs/workbench/parts/update/electron-browser/re
 import { IRequestService } from 'vs/platform/request/node/request';
 import { asText } from 'vs/base/node/request';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
-import { Keybinding } from 'vs/base/common/keybinding';
+import { Keybinding } from 'vs/base/common/keyCodes';
+import { KeybindingLabels } from 'vs/base/common/keybinding';
 import { IOpenerService } from 'vs/platform/opener/common/opener';
 import { IWorkbenchContribution } from 'vs/workbench/common/contributions';
 import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
@@ -56,29 +57,30 @@ export function loadReleaseNotes(accessor: ServicesAccessor, version: string): T
 	const versionLabel = match[1].replace(/\./g, '_');
 	const baseUrl = 'https://code.visualstudio.com/raw';
 	const url = `${baseUrl}/v${versionLabel}.md`;
+	const unassigned = nls.localize('unassigned', "unassigned");
 
 	const patchKeybindings = (text: string): string => {
 		const kb = (match: string, kb: string) => {
 			const keybinding = keybindingService.lookupKeybindings(kb)[0];
 
 			if (!keybinding) {
-				return match;
+				return unassigned;
 			}
 
 			return keybindingService.getLabelFor(keybinding);
 		};
 
 		const kbstyle = (match: string, kb: string) => {
-			const code = Keybinding.fromUserSettingsLabel(kb);
+			const code = KeybindingLabels.fromUserSettingsLabel(kb);
 
 			if (!code) {
-				return match;
+				return unassigned;
 			}
 
 			const keybinding = new Keybinding(code);
 
 			if (!keybinding) {
-				return match;
+				return unassigned;
 			}
 
 			return keybindingService.getLabelFor(keybinding);

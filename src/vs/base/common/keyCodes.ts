@@ -415,7 +415,8 @@ const enum BinaryKeybindingsMask {
 	Shift = 1 << 14,
 	Alt = 1 << 13,
 	WinCtrl = 1 << 12,
-	KeyCode = 0x00000fff
+	KeyCode = 0x00000fff,
+	ModifierMask = CtrlCmd | Shift | Alt | WinCtrl
 }
 
 export const enum KeyMod {
@@ -460,11 +461,56 @@ export class BinaryKeybindings {
 	}
 
 	public static isModifierKey(keybinding: number): boolean {
-		const modifierKeyMask = (BinaryKeybindingsMask.Alt | BinaryKeybindingsMask.CtrlCmd | BinaryKeybindingsMask.Shift | BinaryKeybindingsMask.WinCtrl);
-		return (keybinding & modifierKeyMask) === keybinding;
+		if ((keybinding & BinaryKeybindingsMask.ModifierMask) === keybinding) {
+			return true;
+		}
+		let keyCode = this.extractKeyCode(keybinding);
+		return (
+			keyCode === KeyCode.Ctrl
+			|| keyCode === KeyCode.Meta
+			|| keyCode === KeyCode.Alt
+			|| keyCode === KeyCode.Shift
+		);
 	}
 
 	public static extractKeyCode(keybinding: number): KeyCode {
 		return (keybinding & BinaryKeybindingsMask.KeyCode);
+	}
+}
+
+export class Keybinding {
+
+	public value: number;
+
+	constructor(keybinding: number) {
+		this.value = keybinding;
+	}
+
+	public equals(other: Keybinding): boolean {
+		return this.value === other.value;
+	}
+
+	public hasCtrlCmd(): boolean {
+		return BinaryKeybindings.hasCtrlCmd(this.value);
+	}
+
+	public hasShift(): boolean {
+		return BinaryKeybindings.hasShift(this.value);
+	}
+
+	public hasAlt(): boolean {
+		return BinaryKeybindings.hasAlt(this.value);
+	}
+
+	public hasWinCtrl(): boolean {
+		return BinaryKeybindings.hasWinCtrl(this.value);
+	}
+
+	public isModifierKey(): boolean {
+		return BinaryKeybindings.isModifierKey(this.value);
+	}
+
+	public getKeyCode(): KeyCode {
+		return BinaryKeybindings.extractKeyCode(this.value);
 	}
 }

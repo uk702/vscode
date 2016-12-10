@@ -4,34 +4,29 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import 'vs/css!./keybindings';
 import * as nls from 'vs/nls';
 import { IHTMLContentElement } from 'vs/base/common/htmlContent';
-import { Keybinding } from 'vs/base/common/keybinding';
+import { Keybinding } from 'vs/base/common/keyCodes';
+import { KeybindingLabels } from 'vs/base/common/keybinding';
 import { IDisposable, dispose } from 'vs/base/common/lifecycle';
 import Severity from 'vs/base/common/severity';
 import { isFalsyOrEmpty } from 'vs/base/common/arrays';
-import * as dom from 'vs/base/browser/dom';
-import { IKeyboardEvent, StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { ICommandService, CommandsRegistry, ICommandHandlerDescription } from 'vs/platform/commands/common/commands';
 import { KeybindingResolver, IResolveResult } from 'vs/platform/keybinding/common/keybindingResolver';
-import { IKeybindingEvent, IKeybindingItem, IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
+import { IKeybindingEvent, IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { IContextKeyService, IContextKeyServiceTarget } from 'vs/platform/contextkey/common/contextkey';
-import { KeybindingsRegistry } from 'vs/platform/keybinding/common/keybindingsRegistry';
 import { IStatusbarService } from 'vs/platform/statusbar/common/statusbar';
 import { IMessageService } from 'vs/platform/message/common/message';
 import Event, { Emitter } from 'vs/base/common/event';
 
-export abstract class KeybindingService implements IKeybindingService {
+export abstract class AbstractKeybindingService implements IKeybindingService {
 	public _serviceBrand: any;
 
 	protected toDispose: IDisposable[] = [];
 
-	private _cachedResolver: KeybindingResolver;
-	private _firstTimeComputingResolver: boolean;
 	private _currentChord: number;
 	private _currentChordStatusMessage: IDisposable;
-	private _onDidUpdateKeybindings: Emitter<IKeybindingEvent>;
+	protected _onDidUpdateKeybindings: Emitter<IKeybindingEvent>;
 
 	private _contextKeyService: IContextKeyService;
 	protected _commandService: ICommandService;
@@ -49,8 +44,6 @@ export abstract class KeybindingService implements IKeybindingService {
 		this._statusService = statusService;
 		this._messageService = messageService;
 
-		this._cachedResolver = null;
-		this._firstTimeComputingResolver = true;
 		this._currentChord = 0;
 		this._currentChordStatusMessage = null;
 		this._onDidUpdateKeybindings = new Emitter<IKeybindingEvent>();
@@ -61,48 +54,26 @@ export abstract class KeybindingService implements IKeybindingService {
 		this.toDispose = dispose(this.toDispose);
 	}
 
-	protected _beginListening(domNode: HTMLElement): void {
-		this.toDispose.push(dom.addDisposableListener(domNode, dom.EventType.KEY_DOWN, (e: KeyboardEvent) => {
-			let keyEvent = new StandardKeyboardEvent(e);
-			this._dispatch(keyEvent);
-		}));
-	}
-
-	private _getResolver(): KeybindingResolver {
-		if (!this._cachedResolver) {
-			this._cachedResolver = new KeybindingResolver(KeybindingsRegistry.getDefaultKeybindings(), this._getExtraKeybindings(this._firstTimeComputingResolver));
-			this._firstTimeComputingResolver = false;
-		}
-		return this._cachedResolver;
-	}
+	protected abstract _getResolver(): KeybindingResolver;
 
 	get onDidUpdateKeybindings(): Event<IKeybindingEvent> {
 		return this._onDidUpdateKeybindings ? this._onDidUpdateKeybindings.event : Event.None; // Sinon stubbing walks properties on prototype
 	}
 
 	public getLabelFor(keybinding: Keybinding): string {
-		return keybinding._toUSLabel();
+		return KeybindingLabels._toUSLabel(keybinding);
 	}
 
 	public getHTMLLabelFor(keybinding: Keybinding): IHTMLContentElement[] {
-		return keybinding._toUSHTMLLabel();
+		return KeybindingLabels._toUSHTMLLabel(keybinding);
 	}
 
 	public getAriaLabelFor(keybinding: Keybinding): string {
-		return keybinding._toUSAriaLabel();
+		return KeybindingLabels._toUSAriaLabel(keybinding);
 	}
 
 	public getElectronAcceleratorFor(keybinding: Keybinding): string {
-		return keybinding._toElectronAccelerator();
-	}
-
-	protected updateResolver(event: IKeybindingEvent): void {
-		this._cachedResolver = null;
-		this._onDidUpdateKeybindings.fire(event);
-	}
-
-	protected _getExtraKeybindings(isFirstTime: boolean): IKeybindingItem[] {
-		return [];
+		return KeybindingLabels._toElectronAccelerator(keybinding);
 	}
 
 	public getDefaultKeybindings(): string {
@@ -150,32 +121,32 @@ export abstract class KeybindingService implements IKeybindingService {
 		return this._getResolver().resolve(contextValue, this._currentChord, keybinding.value);
 	}
 
-	protected _dispatch(e: IKeyboardEvent): void {
+	protected _dispatch(keybinding: Keybinding, target: IContextKeyServiceTarget): boolean {
 		// Check modifier key here and cancel early, it's also checked in resolve as the function
 		// is used externally.
-		const keybinding = e.toKeybinding();
+		let shouldPreventDefault = false;
 		if (keybinding.isModifierKey()) {
-			return;
+			return shouldPreventDefault;
 		}
 
-		const resolveResult = this.resolve(keybinding, e.target);
+		const resolveResult = this.resolve(keybinding, target);
 
 		if (resolveResult && resolveResult.enterChord) {
-			e.preventDefault();
+			shouldPreventDefault = true;
 			this._currentChord = resolveResult.enterChord;
 			if (this._statusService) {
 				let firstPartLabel = this.getLabelFor(new Keybinding(this._currentChord));
 				this._currentChordStatusMessage = this._statusService.setStatusMessage(nls.localize('first.chord', "({0}) was pressed. Waiting for second key of chord...", firstPartLabel));
 			}
-			return;
+			return shouldPreventDefault;
 		}
 
 		if (this._statusService && this._currentChord) {
 			if (!resolveResult || !resolveResult.commandId) {
 				let firstPartLabel = this.getLabelFor(new Keybinding(this._currentChord));
-				let chordPartLabel = this.getLabelFor(e.toKeybinding());
+				let chordPartLabel = this.getLabelFor(keybinding);
 				this._statusService.setStatusMessage(nls.localize('missing.chord', "The key combination ({0}, {1}) is not a command.", firstPartLabel, chordPartLabel), 10 * 1000 /* 10s */);
-				e.preventDefault();
+				shouldPreventDefault = true;
 			}
 		}
 		if (this._currentChordStatusMessage) {
@@ -186,12 +157,14 @@ export abstract class KeybindingService implements IKeybindingService {
 
 		if (resolveResult && resolveResult.commandId) {
 			if (!/^\^/.test(resolveResult.commandId)) {
-				e.preventDefault();
+				shouldPreventDefault = true;
 			}
 			let commandId = resolveResult.commandId.replace(/^\^/, '');
 			this._commandService.executeCommand(commandId, resolveResult.commandArgs || {}).done(undefined, err => {
 				this._messageService.show(Severity.Warning, err);
 			});
 		}
+
+		return shouldPreventDefault;
 	}
 }
