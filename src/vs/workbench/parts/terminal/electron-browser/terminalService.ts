@@ -56,7 +56,7 @@ export class TerminalService implements ITerminalService {
 		this._onInstanceTitleChanged = new Emitter<string>();
 		this._onInstancesChanged = new Emitter<string>();
 
-		this._configurationService.onDidUpdateConfiguration(this.updateConfig.bind(this));
+		this._configurationService.onDidUpdateConfiguration(() => this.updateConfig());
 		this._terminalFocusContextKey = KEYBINDING_CONTEXT_TERMINAL_FOCUS.bindTo(this._contextKeyService);
 		this._configHelper = <TerminalConfigHelper>this._instantiationService.createInstance(TerminalConfigHelper, platform.platform);
 		this.onInstanceDisposed((terminalInstance) => { this._removeInstance(terminalInstance); });
@@ -209,10 +209,6 @@ export class TerminalService implements ITerminalService {
 	}
 
 	public updateConfig(): void {
-		this.terminalInstances.forEach((terminalInstance) => {
-			terminalInstance.setCursorBlink(this.configHelper.getCursorBlink());
-			terminalInstance.setCommandsToSkipShell(this.configHelper.getCommandsToSkipShell());
-			terminalInstance.setScrollback(this.configHelper.getScrollback());
-		});
+		this.terminalInstances.forEach(instance => instance.updateConfig());
 	}
 }
