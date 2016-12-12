@@ -9,7 +9,6 @@ import 'vs/css!./media/editorpart';
 import 'vs/workbench/browser/parts/editor/editor.contribution';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { Registry } from 'vs/platform/platform';
-import timer = require('vs/base/common/timer');
 import { Dimension, Builder, $ } from 'vs/base/browser/builder';
 import nls = require('vs/nls');
 import strings = require('vs/base/common/strings');
@@ -305,13 +304,11 @@ export class EditorPart extends Part implements IEditorPart, IEditorGroupService
 		}
 
 		// Create Editor
-		const timerEvent = timer.start(timer.Topic.WORKBENCH, strings.format('Creating Editor: {0}', descriptor.getName()));
 		return this.doCreateEditor(group, descriptor, monitor).then(editor => {
 			const position = this.stacks.positionOfGroup(group); // might have changed due to a rochade meanwhile
 
 			// Make sure that the user meanwhile did not open another editor or something went wrong
 			if (!editor || !this.visibleEditors[position] || editor.getId() !== this.visibleEditors[position].getId()) {
-				timerEvent.stop();
 				monitor.cancel();
 
 				return null;
@@ -325,8 +322,6 @@ export class EditorPart extends Part implements IEditorPart, IEditorGroupService
 
 			// Make sure the editor is layed out
 			this.editorGroupsControl.layout(position);
-
-			timerEvent.stop();
 
 			return editor;
 
@@ -422,7 +417,6 @@ export class EditorPart extends Part implements IEditorPart, IEditorGroupService
 		const inputChanged = (!previousInput || !previousInput.matches(input) || (options && options.forceOpen));
 
 		// Call into Editor
-		const timerEvent = timer.start(timer.Topic.WORKBENCH, strings.format('Set Editor Input: {0}', input.getName()));
 		return editor.setInput(input, options).then(() => {
 
 			// Stop loading promise if any
@@ -446,8 +440,6 @@ export class EditorPart extends Part implements IEditorPart, IEditorGroupService
 			if (inputChanged) {
 				this._onEditorsChanged.fire();
 			}
-
-			timerEvent.stop();
 
 			// Fullfill promise with Editor that is being used
 			return editor;
